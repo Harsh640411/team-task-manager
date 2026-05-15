@@ -1,5 +1,7 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import ProjectView from './pages/ProjectView';
 
@@ -9,7 +11,12 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* Default route ab Signup par jayega agar user login nahi hai */}
+        <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Signup />} />
+        <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
+
+        {/* Protected Routes */}
         <Route 
           path="/dashboard" 
           element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} 
@@ -18,8 +25,9 @@ function App() {
           path="/projects" 
           element={isAuthenticated ? <ProjectView /> : <Navigate to="/login" />} 
         />
-        {/* Default route */}
-        <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} />} />
       </Routes>
     </Router>
   );

@@ -14,7 +14,7 @@ const ProjectView = () => {
             if (!token) return navigate('/login');
 
             try {
-                const res = await axios.get('http://localhost:5000/api/projects', {
+                const res = await axios.get('https://team-task-manager-production-fb15.up.railway.app/api/projects', {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setProjects(res.data);
@@ -29,7 +29,7 @@ const ProjectView = () => {
         e.preventDefault();
         try {
             const token = localStorage.getItem('token');
-            await axios.post('http://localhost:5000/api/projects', 
+            await axios.post('http://team-task-manager-production-fb15.up.railway.app/api/projects', 
                 { name, description }, 
                 { headers: { Authorization: `Bearer ${token}` }}
             );

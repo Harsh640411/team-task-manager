@@ -14,6 +14,18 @@ router.get('/', verifyToken, async (req, res) => {
         res.status(500).json({ error: "Database error occurred" });
     }
 });
+
+// Backend (Express) example for status update
+router.put('/:id', async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    try {
+        await db.execute('UPDATE tasks SET status = ? WHERE id = ?', [status, id]);
+        res.json({ message: "Status updated successfully" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 // routes/tasks.js - Updated POST route
 router.post('/', verifyToken, async (req, res) => {
     const { title, description, project_id, status } = req.body; // Frontend se project_id aayega

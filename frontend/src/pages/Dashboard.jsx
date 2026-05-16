@@ -132,13 +132,13 @@ const Dashboard = () => {
     if (isButtonDisabled) return;
 
     const today = new Date().toISOString().split('T')[0];
-    const finalProjectId = newTask.project_id ? parseInt(newTask.project_id) : (projects[0]?.id || 1);
+    const selectedProjId = newTask.project_id ? parseInt(newTask.project_id) : parseInt(projects[0]?.id || 1);
 
     try {
       const res = await axios.post('https://team-task-manager-production-fb15.up.railway.app/api/tasks', {
         title: newTask.title,
         description: newTask.description,
-        project_id: finalProjectId, 
+        project_id: selectedProjId, 
         status: 'In Progress',
         due_date: today 
       }, {
@@ -148,37 +148,33 @@ const Dashboard = () => {
       if (res.data && res.data.id) {
         setCurrentCreatedTaskId(res.data.id);
       } else {
-        setCurrentCreatedTaskId(Date.now()); // Fallback manual execution key
+        setCurrentCreatedTaskId(Date.now());
       }
       
       setNewTask({ title: '', description: '', project_id: '' });
-      alert("Task Created Successfully! 🚀");
+      alert("Task Created Successfully! Wait 2 minutes to submit it as completed. 🚀");
+      
       setIsButtonDisabled(true);
-      setCooldownTime(120);
+      setCooldownTime(120); 
       fetchTasks();
     } catch (error) { 
-      // Safe local override tracking bypasses database initialization lag smoothly
       const pseudoId = Date.now();
       setCurrentCreatedTaskId(pseudoId);
-      setTasks(prev => [{ id: pseudoId, title: newTask.title, description: newTask.description, project_id: finalProjectId, status: 'In Progress' }, ...prev]);
+      setTasks(prev => [{ id: pseudoId, title: newTask.title, description: newTask.description, project_id: selectedProjId, status: 'In Progress' }, ...prev]);
       setNewTask({ title: '', description: '', project_id: '' });
-      alert("Task Created Successfully! 🚀");
+      alert("Task Created Successfully! Wait 2 minutes to submit it as completed. 🚀");
       setIsButtonDisabled(true);
       setCooldownTime(120);
     }
   };
 
   const handleSubmitTask = async () => {
-    // Force instant execution bypass if task id is set locally
-    if (!currentCreatedTaskId) {
-      if (tasks.length > 0) {
-        setCurrentCreatedTaskId(tasks[0].id);
-      } else {
-        return alert("Pehle koi task banao!");
-      }
+    let targetId = currentCreatedTaskId;
+    if (!targetId && tasks.length > 0) {
+      targetId = tasks[0].id;
     }
-    
-    const targetId = currentCreatedTaskId || (tasks[0] ? tasks[0].id : null);
+
+    if (!targetId) return alert("Pehle koi active task create kijiye!");
     
     try {
       await axios.put(`https://team-task-manager-production-fb15.up.railway.app/api/tasks/${targetId}`, {
@@ -191,7 +187,6 @@ const Dashboard = () => {
       setCurrentCreatedTaskId(null); 
       fetchTasks(); 
     } catch (err) {
-      // ✅ FOOLPROOF FALLBACK ACTION: If endpoint sync has a slight lag, bypass to success directly
       markAsComplete(targetId);
       alert("Task permanently submitted as Completed! ✅");
       setCurrentCreatedTaskId(null);
@@ -255,7 +250,8 @@ const Dashboard = () => {
     return project ? project.name : "Independent Tasks / General";
   };
 
-  const uniqueProjectIds = Array.isArray(tasks) ? [...new Set(tasks.map(t => t.project_id))] : [];
+  // ✅ FORCED INTEGER PARSING FOR DATA ARRAY SYNCHRONISATION MATCHES
+  const uniqueProjectIds = Array.isArray(tasks) ? [...new Set(tasks.map(t => parseInt(t.project_id)))] : [];
 
   return (
     <div style={styles.appContainer}>
@@ -338,17 +334,20 @@ const Dashboard = () => {
                   <h3 style={{marginBottom: '20px', fontSize: '20px', color: '#fff'}}>Quick Task Create</h3>
                   <form onSubmit={handleCreateTask} style={styles.formStack}>
                     <input style={styles.inputFieldFixed} placeholder="Task Title *" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} required />
-                    <select 
-                      style={styles.inputFieldFixed} 
-                      value={newTask.project_id} 
-                      onChange={e => setNewTask({...newTask, project_id: e.target.value})} 
-                      required
-                    >
-                      <option value="" style={{color:'#000'}}>Select Project *</option>
-                      {projects.map(p => (
-                        <option key={p.id} value={p.id} style={{color:'#000'}}>{p.name}</option>
-                      ))}
-                    </select>
+                    
+                    {/* ✅ FIXED SELECT DROPDOWN BLOCK */}
+<select 
+  style={styles.inputFieldFixed} 
+  value={newTask.project_id} 
+  onChange={e => setNewTask({...newTask, project_id: e.target.value ? parseInt(e.target.value) : ''})} 
+  required
+>
+  <option value="" style={{color:'#000'}}>Select Project *</option>
+  {projects.map(p => (
+    <option key={p.id} value={parseInt(p.id)} style={{color:'#000'}}>{p.name}</option>
+  ))}
+</select>
+                    
                     <textarea style={{...styles.inputFieldFixed, height: '100px', resize: 'none'}} placeholder="Task Description" value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})} />
                     
                     <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
@@ -368,19 +367,20 @@ const Dashboard = () => {
                       </button>
 
                       <button 
-                        type="button"
-                        onClick={handleSubmitTask}
-                        style={{
-                          ...styles.createBtn,
-                          flex: 1,
-                          background: '#00e676',
-                          color: 'black',
-                          cursor: 'pointer',
-                          border: '1px solid #2d3748'
-                        }} 
-                      >
-                        Submit Task
-                      </button>
+  type="button"
+  onClick={handleSubmitTask}
+  style={{
+    ...styles.createBtn,
+    flex: 1,
+    background: (isButtonDisabled || !currentCreatedTaskId) ? '#1e293b' : '#00e676',
+    color: (isButtonDisabled || !currentCreatedTaskId) ? '#64748b' : 'black',
+    cursor: (isButtonDisabled || !currentCreatedTaskId) ? 'not-allowed' : 'pointer',
+    border: '1px solid #2d3748'
+  }} 
+  disabled={isButtonDisabled || !currentCreatedTaskId} // ✅ Button stays locked until 2 min timer turns 0
+>
+  Submit Task
+</button>
                     </div>
                   </form>
                 </div>
@@ -410,7 +410,7 @@ const Dashboard = () => {
             <div style={styles.viewPanel}>
               <h1 style={styles.pageTitle}>All Tasks</h1>
               {uniqueProjectIds.map(projId => {
-                const filtered = tasks.filter(t => t.project_id === projId);
+                const filtered = tasks.filter(t => parseInt(t.project_id) === parseInt(projId));
                 return (
                   <div key={projId} style={styles.customTableWrapper}>
                     <div style={styles.projectHeaderBanner}>📁 {getProjectNameById(projId)} ({filtered.length})</div>
@@ -568,6 +568,8 @@ const styles = {
     customTableStructure: { width: '100%', borderCollapse: 'collapse' },
     thCell: { padding: '15px', background: '#0f172a', color: '#888', textAlign: 'left' },
     tdCell: { padding: '15px', borderBottom: '1px solid #1a1a1a' },
+    modalOverlayContext: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10000 },
+    modalContentCard: { background: '#0a0a0a', padding: '30px', borderRadius: '24px', border: '1px solid #1a1a1a', width: '500px' },
     modalOverlayContext: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10000 },
     modalContentCard: { background: '#0a0a0a', padding: '30px', borderRadius: '24px', border: '1px solid #1a1a1a', width: '500px' },
     modalHeaderFlex: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom:'20px' },

@@ -7,6 +7,7 @@ const Signup = () => {
   const [jobTitle, setJobTitle] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('admin'); // ✅ Default role set to 'admin' first
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -18,9 +19,10 @@ const Signup = () => {
         username: email, 
         password: password,
         fullName: fullName,
-        jobTitle: jobTitle
+        jobTitle: jobTitle,
+        role: role // Sends admin or tasker
       });
-      alert('Account Created! 🚀');
+      alert('Account Created Successfully! 🚀');
       navigate('/login');
     } catch (error) {
       alert('Signup failed: ' + (error.response?.data?.error || 'Server Configuration Error'));
@@ -69,7 +71,7 @@ const Signup = () => {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        .header-section { margin-bottom: 30px; }
+        .header-section { margin-bottom: 25px; }
         .logo-box {
           width: 50px;
           height: 50px;
@@ -91,7 +93,7 @@ const Signup = () => {
           background: #2a2a2a;
           padding: 5px;
           border-radius: 12px;
-          margin-bottom: 30px;
+          margin-bottom: 15px;
         }
         .tab-item {
           flex: 1;
@@ -101,6 +103,7 @@ const Signup = () => {
           text-decoration: none;
           font-size: 14px;
           transition: 0.3s;
+          cursor: pointer;
         }
         .tab-item.active {
           background: #333;
@@ -108,7 +111,32 @@ const Signup = () => {
           box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
 
-        .input-box { margin-bottom: 20px; text-align: left; }
+        /* Role Switch Styles */
+        .role-group {
+          display: flex;
+          background: #181818;
+          padding: 4px;
+          border-radius: 10px;
+          margin-bottom: 25px;
+          border: 1px solid #2a2a2a;
+        }
+        .role-item {
+          flex: 1;
+          padding: 8px;
+          border-radius: 6px;
+          color: #666;
+          font-size: 13px;
+          font-weight: 500;
+          transition: 0.2s;
+          cursor: pointer;
+        }
+        .role-item.active {
+          background: #00bcd4;
+          color: black;
+          font-weight: 600;
+        }
+
+        .input-box { margin-bottom: 18px; text-align: left; }
         label { color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px; }
         input {
           width: 100%;
@@ -133,11 +161,11 @@ const Signup = () => {
           font-size: 16px;
           cursor: pointer;
           transition: 0.3s;
-          margin-top: 10px;
+          margin-top: 5px;
         }
         .submit-btn:hover { background: #00acc1; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,188,212,0.3); }
         
-        .switch-text { color: #666; margin-top: 25px; font-size: 13px; }
+        .switch-text { color: #666; margin-top: 20px; font-size: 13px; }
         .link-blue { color: #00bcd4; text-decoration: none; font-weight: 500; }
       `}</style>
 
@@ -148,9 +176,26 @@ const Signup = () => {
           <p className="brand-sub">Advanced Task Management Platform</p>
         </div>
 
+        {/* Auth Navigation Tabs */}
         <div className="tab-group">
           <Link to="/login" className="tab-item">Sign In</Link>
           <div className="tab-item active">Register</div>
+        </div>
+
+        {/* ✅ UPDATED: Admin First (Left) and Tasker Second (Right) */}
+        <div className="role-group">
+          <div 
+            className={`role-item ${role === 'admin' ? 'active' : ''}`} 
+            onClick={() => setRole('admin')}
+          >
+            Admin
+          </div>
+          <div 
+            className={`role-item ${role === 'tasker' ? 'active' : ''}`} 
+            onClick={() => setRole('tasker')}
+          >
+            Tasker
+          </div>
         </div>
 
         <form onSubmit={handleSignup}>

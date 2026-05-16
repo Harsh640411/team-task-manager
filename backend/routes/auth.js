@@ -69,6 +69,36 @@ router.post('/login', async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Server error" }); }
 });
 
+// 1. 📝 TASKER ACTION: Apply for a new leave request
+router.post('/leaves/apply', verifyToken, async (req, res) => {
+    const { fromDate, toDate, reason } = req.body;
+    const username = req.user.username; // token verification se username nikal jayega
+
+    try {
+        // Status automatically default 'Pending' set hoga database insert ke waqt
+        await db.execute(
+            'INSERT INTO leaves (username, fromDate, toDate, reason, status) VALUES (?, ?, ?, ?, ?)',
+            [username, fromDate, toDate, reason, 'Pending']
+        );
+        res.status(201).json({ message: "Leave applied successfully" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 2. 👤 TASKER ACTION: Fetch only this specific logged-in user's leaves
+router.get('/leaves/my-leaves', verifyToken, async (req, res) => {
+    const username = req.user.username;
+    try {
+        const [myLeaves] = await db.execute(
+            'SELECT * FROM leaves WHERE username = ? ORDER BY id DESC',
+            [username]
+        );
+        res.json(myLeaves);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 // GET /me
 router.get('/me', verifyToken, async (req, res) => {
     try {

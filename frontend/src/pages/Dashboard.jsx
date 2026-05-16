@@ -22,7 +22,7 @@ const Dashboard = () => {
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
   
   const [showLeaveModal, setShowLeaveModal] = useState(false);
-  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [leaveRequests, setLeaveRequests] = useState([]); // ✅ This now synchronizes with live platform db
   const [leaveForm, setLeaveForm] = useState({ fromDate: '', toDate: '', reason: '' });
 
   const [isPunchedIn, setIsPunchedIn] = useState(false);
@@ -40,6 +40,7 @@ const Dashboard = () => {
     fetchUserData();
     fetchTasks();
     fetchProjects();
+    fetchMyLeaveStatus(); // ✅ Added hook execution to load leaves from backend
   }, []);
 
   useEffect(() => {
@@ -78,6 +79,18 @@ const Dashboard = () => {
       });
       if (res.data) setUserData(res.data);
     } catch (err) { if(err.response?.status === 401) handleLogout(); }
+  };
+
+  // ✅ NEW PIPELINE FETCH HOOK: Pulls personal leave states straight from cloud database
+  const fetchMyLeaveStatus = async () => {
+    try {
+      const res = await axios.get('https://team-task-manager-production-fb15.up.railway.app/api/auth/leaves/my-leaves', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.data && Array.isArray(res.data)) {
+        setLeaveRequests(res.data);
+      }
+    } catch (err) { console.error("Database leaves pull offline", err); }
   };
 
   const fetchTasks = async () => {
@@ -181,21 +194,24 @@ const Dashboard = () => {
     }
   };
 
-  const handleLeaveSubmit = (e) => {
+  const handleLeaveSubmit = async (e) => {
     e.preventDefault();
-    const newRequest = { 
-      id: Date.now(), 
-      name: userData.fullName || 'User',
-      email: userData.username,
-      fromDate: leaveForm.fromDate, 
-      toDate: leaveForm.toDate, 
-      reason: leaveForm.reason, 
-      status: 'Pending' 
-    };
-    setLeaveRequests([newRequest, ...leaveRequests]);
-    setLeaveForm({ fromDate: '', toDate: '', reason: '' });
-    setShowLeaveModal(false);
-    alert("Leave request submitted! 📄");
+    try {
+      await axios.post('https://team-task-manager-production-fb15.up.railway.app/api/auth/leaves/apply', {
+        fromDate: leaveForm.fromDate,
+        toDate: leaveForm.toDate,
+        reason: leaveForm.reason
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      alert("Leave request submitted directly to Admin database! 📄");
+      setLeaveForm({ fromDate: '', toDate: '', reason: '' });
+      setShowLeaveModal(false);
+      fetchMyLeaveStatus(); // ✅ Reload straight from db
+    } catch (err) {
+      alert("Leave submission failed.");
+    }
   };
 
   const formatTime = (sec) => {
@@ -286,7 +302,6 @@ const Dashboard = () => {
               </div>
 
               <div style={styles.statsRow}>
-                {/* ✅ Total active time in minutes including current session */}
                 <div style={styles.statCard}><div style={styles.statLabel}>TASKS COMPLETED</div><div style={styles.statValue}>{tasks.filter(t => t.status === 'Completed').length}</div></div>
                 <div style={styles.statCard}><div style={styles.statLabel}>TOTAL TIME</div><div style={styles.statValue}>{Math.floor((isPunchedIn ? (accumulatedSessionTime + seconds) : accumulatedSessionTime) / 60)}m</div></div>
                 <div style={styles.statCard}><div style={styles.statLabel}>SIGN COUNT</div><div style={styles.statValue}>{punchCount}/2</div></div>
@@ -303,7 +318,6 @@ const Dashboard = () => {
                     </select>
                     <textarea style={{...styles.inputFieldFixed, height: '100px', resize: 'none'}} placeholder="Task Description" value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})} />
                     
-                    {/* ✅ TWO PARTS BUTTON DESIGN (Colors and Disable states perfectly aligned with Punch-In) */}
                     <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
                       <button 
                         type="submit" 
@@ -418,6 +432,7 @@ const Dashboard = () => {
             </div>
           )}
 
+          {/* ✅ THE TASKER LEAVE TRACKER VIEW INJECTS ACTUAL ACCEPT/REJECT STATUS REAL TIME */}
           {activeTab === 'leave' && (
             <div style={styles.viewPanel}>
               <div style={styles.headerRowFlex}>
@@ -428,9 +443,18 @@ const Dashboard = () => {
                 {leaveRequests.length === 0 ? <p style={{textAlign:'center', color:'#888'}}>No leave requests found.</p> : 
                   leaveRequests.map(req => (
                     <div key={req.id} style={{ ...styles.taskItem, flexDirection: 'column', alignItems: 'flex-start', padding: '20px', gap: '10px', marginBottom: '15px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#00bcd4' }}>👤 {req.name || userData.fullName}</span>
-                        <span style={{ ...styles.statusBadge, background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid #f59e0b' }}>{req.status}</span>
+                        
+                        {/* ✅ Real-time status update tag color rendering from Admin actions */}
+                        <span style={{ 
+                          ...styles.statusBadge, 
+                          background: 'rgba(255,255,255,0.02)', 
+                          color: req.status === 'Approved' ? '#00e676' : req.status === 'Rejected' ? '#ef4444' : '#f59e0b', 
+                          border: `1px solid ${req.status === 'Approved' ? '#00e676' : req.status === 'Rejected' ? '#ef4444' : '#f59e0b'}` 
+                        }}>
+                          {req.status ? req.status.toUpperCase() : 'PENDING'}
+                        </span>
                       </div>
                       <div style={{ fontSize: '14px', color: '#888' }}>📧 {req.email || userData.username}</div>
                       <div style={{ fontSize: '15px', color: '#daffde' }}>📅 <strong>Duration:</strong> {req.fromDate} <span style={{color:'#00bcd4'}}>to</span> {req.toDate}</div>

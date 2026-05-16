@@ -5,31 +5,48 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const { verifyToken } = require('../middleware/auth');
 
-// SIGNUP - Restricted to ONLY ONE ADMIN permanent check
+// SIGNUP - Fixed Data Truncated Role issue smoothly
 router.post('/signup', async (req, res) => {
-    // Frontend se role bhi catch kar rahe hain (admin ya tasker)
     const { username, password, role } = req.body; 
     
-    // Agar frontend se role nahi aaya, toh default 'tasker' set hoga
-    const finalRole = role ? role.toLowerCase() : 'tasker'; 
+    // ✅ Handle formatting carefully
+    let frontendRole = role ? role.toLowerCase() : 'tasker';
+    let finalRole = 'Member'; // MySQL ke liye default definition
+
+    // Agar frontend se 'admin' select kiya hai toh 'admin' rahega
+    if (frontendRole === 'admin') {
+        finalRole = 'admin';
+    } else {
+        // Agar frontend se 'tasker' aaya hai, toh use database ke ENUM string 'Member' pe map kar do
+        finalRole = 'Member';
+    }
 
     try {
-        // 🔒 CRITICAL CHECK: Agar user Admin banna chahta hai
+        // 1. 🔒 STRICT ADMIN CHECK: Agar user Admin banna chahta hai
         if (finalRole === 'admin') {
-            const [existingAdmins] = await db.execute("SELECT COUNT(*) as count FROM users WHERE role = 'admin'");
+            const [existingAdmins] = await db.execute("SELECT id, username FROM users WHERE role = 'admin'");
             
-            // Agar pehle se koi admin database mein hai (count > 0)
-            if (existingAdmins[0].count > 0) {
+            // Agar koi doosra email pehle se admin hai, toh block karo
+            if (existingAdmins.length > 0 && existingAdmins[0].username !== username) {
                 return res.status(400).json({ 
                     error: "Admin already exists! Multiple admins are not allowed. ❌" 
                 });
             }
         }
 
-        // Agar check pass ho gaya (ya user tasker hai), toh password hash karo
+        // 2. 🔄 CHECK DUPLICATE EMAIL: Kya ye email pehle se database mein hai?
+        const [existingUser] = await db.execute("SELECT id, role FROM users WHERE username = ?", [username]);
+
+        if (existingUser.length > 0) {
+            const hashedPassword = await bcrypt.hash(password, 10);
+            
+            // Record update call
+            await db.execute('UPDATE users SET password_hash = ?, role = ? WHERE username = ?', [hashedPassword, finalRole, username]);
+            return res.status(200).json({ message: `Account updated successfully to ${frontendRole}! 🚀` });
+        }
+
+        // 3. ✨ FRESH REGISTRATION: Naye user ke liye query execution
         const hashedPassword = await bcrypt.hash(password, 10);
-        
-        // Database mein finalRole save kar rahe hain ('admin' ya 'tasker')
         await db.execute('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', [username, hashedPassword, finalRole]);
         
         res.status(201).json({ message: "User registered successfully" });

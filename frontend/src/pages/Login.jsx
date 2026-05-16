@@ -3,111 +3,137 @@ import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 
 const Login = () => {
-  // ✅ Changed from username to email state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
-      // ✅ Payload sends email into the backend expected username field mapping
-      const response = await axios.post('https://team-task-manager-production-fb15.up.railway.app/api/auth/login', {
-        username: email, 
-        password
+      const res = await axios.post('https://team-task-manager-production-fb15.up.railway.app/api/auth/login', {
+        username: email,
+        password: password
       });
-      localStorage.setItem('token', response.data.token);
-      // Direct redirect with hard refresh to clear state
-      window.location.href = '/dashboard';
+
+      // ✅ Token save kiya
+      localStorage.setItem('token', res.data.token);
+
+      // ✅ Ab seedhe backend se user details fetch karenge role janne ke liye
+      const userRes = await axios.get('https://team-task-manager-production-fb15.up.railway.app/api/auth/me', {
+        headers: { Authorization: `Bearer ${res.data.token}` }
+      });
+
+      const userRole = userRes.data?.role ? userRes.data.role.toLowerCase() : 'tasker';
+      
+      // ✅ Role ko bhi localStorage mein save kar lo taaki App.jsx turant read kar sake
+      localStorage.setItem('userRole', userRole);
+
+      alert('Logged In successfully! 🚀');
+
+      // ✅ Proper redirection matching roles
+      if (userRole === 'admin') {
+        navigate('/admin-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+
+      // Force a soft page refresh to update App.jsx state accurately
+      window.location.reload();
+
     } catch (error) {
-      // ✅ Dynamically updated alert messaging context
-      alert('Login Failed! Check email or password.');
+      alert('Login failed: ' + (error.response?.data?.error || 'Invalid username or password'));
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="auth-container">
-      {/* Purane UI styles and properties strictly preserved without change */}
+    <div className="auth-wrapper">
       <style>{`
-        .auth-container {
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background-color: #121212 !important;
+          width: 100% !important;
+          height: 100% !important;
+          overflow: hidden;
+        }
+        .auth-wrapper {
           height: 100vh;
+          width: 100vw;
           display: flex;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(135deg, #232526 0%, #414345 100%);
-          font-family: 'Poppins', sans-serif;
+          background: #121212; 
+          font-family: 'Inter', sans-serif;
         }
         .auth-card {
-          background: rgba(255, 255, 255, 0.07);
-          backdrop-filter: blur(15px);
+          background: #1e1e1e; 
           padding: 40px;
-          border-radius: 20px;
-          width: 380px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          text-align: center;
+          border-radius: 24px;
           box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-          animation: slideUp 0.8s ease-out;
+          width: 400px;
+          text-align: center;
+          border: 1px solid rgba(255,255,255,0.05);
         }
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(30px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        h2 { color: #fff; margin-bottom: 10px; }
-        .input-group { margin-bottom: 20px; }
-        input {
-          width: 100%;
-          padding: 12px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 10px;
-          color: #fff;
-          outline: none;
-          box-sizing: border-box;
-        }
-        input:focus { border-color: #00d2ff; }
-        .btn {
-          width: 100%;
-          padding: 12px;
-          background: linear-gradient(to right, #00d2ff, #3a7bd5);
+        .header-section { margin-bottom: 30px; }
+        .logo-box {
+          width: 50px;
+          height: 50px;
+          background: #00bcd4;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           color: white;
-          border: none;
-          border-radius: 10px;
           font-weight: bold;
-          cursor: pointer;
-          transition: 0.3s;
+          font-size: 20px;
+          margin: 0 auto 15px;
         }
-        .btn:hover { transform: scale(1.03); box-shadow: 0 0 15px #00d2ff; }
-        .footer-text { color: #ccc; margin-top: 20px; font-size: 14px; }
-        .link { color: #00d2ff; text-decoration: none; font-weight: bold; }
+        h2 { color: #ffffff; margin: 0; font-size: 24px; }
+        .tab-group { display: flex; background: #2a2a2a; padding: 5px; border-radius: 12px; margin-bottom: 30px; }
+        .tab-item { flex: 1; padding: 10px; border-radius: 8px; color: #888; text-decoration: none; font-size: 14px; }
+        .tab-item.active { background: #333; color: #fff; }
+        .input-box { margin-bottom: 20px; text-align: left; }
+        label { color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px; }
+        input { width: 100%; padding: 14px; background: #2a2a2a; border: 1px solid #333; border-radius: 12px; color: #fff; outline: none; box-sizing: border-box; }
+        input:focus { border-color: #00bcd4; }
+        .submit-btn { width: 100%; padding: 14px; background: #00bcd4; color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 16px; cursor: pointer; }
+        .switch-text { color: #666; margin-top: 25px; font-size: 13px; }
+        .link-blue { color: #00bcd4; text-decoration: none; }
       `}</style>
 
       <div className="auth-card">
-        <h2>Welcome Back</h2>
-        <p style={{color: '#aaa', marginBottom: '30px'}}>Please login to your account</p>
+        <div className="header-section">
+          <div className="logo-box">TT</div>
+          <h2>Task Track</h2>
+        </div>
+
+        <div className="tab-group">
+          <div className="tab-item active">Sign In</div>
+          <Link to="/signup" className="tab-item">Register</Link>
+        </div>
+
         <form onSubmit={handleLogin}>
-          {/* ✅ UPDATED ELEMENT: USERNAME CONVERTED TO EMAIL */}
-          <div className="input-group">
-            <input 
-              type="email" 
-              placeholder="Email Address" 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              required 
-            />
+          <div className="input-box">
+            <label>Email Address</label>
+            <input type="email" placeholder="Enter your email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
-          <div className="input-group">
-            <input 
-              type="password" 
-              placeholder="Password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              required 
-            />
+
+          <div className="input-box">
+            <label>Password</label>
+            <input type="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
-          <button type="submit" className="btn">Login</button>
+
+          <button type="submit" className="submit-btn" disabled={loading}>
+            {loading ? 'Signing In...' : 'Sign In'}
+          </button>
         </form>
-        <p className="footer-text">
-          New user? <Link to="/signup" className="link">Create Account</Link>
+
+        <p className="switch-text">
+          Don't have an account? <Link to="/signup" className="link-blue">Register instead</Link>
         </p>
       </div>
     </div>

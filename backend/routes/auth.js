@@ -9,24 +9,19 @@ const { verifyToken } = require('../middleware/auth');
 router.post('/signup', async (req, res) => {
     const { username, password, role } = req.body; 
     
-    // ✅ Handle formatting carefully
     let frontendRole = role ? role.toLowerCase() : 'tasker';
-    let finalRole = 'Member'; // MySQL ke liye default definition
+    let finalRole = 'Member'; 
 
-    // Agar frontend se 'admin' select kiya hai toh 'admin' rahega
     if (frontendRole === 'admin') {
         finalRole = 'admin';
     } else {
-        // Agar frontend se 'tasker' aaya hai, toh use database ke ENUM string 'Member' pe map kar do
         finalRole = 'Member';
     }
 
     try {
-        // 1. 🔒 STRICT ADMIN CHECK: Agar user Admin banna chahta hai
+        // 1. 🔒 STRICT ADMIN CHECK
         if (finalRole === 'admin') {
             const [existingAdmins] = await db.execute("SELECT id, username FROM users WHERE role = 'admin'");
-            
-            // Agar koi doosra email pehle se admin hai, toh block karo
             if (existingAdmins.length > 0 && existingAdmins[0].username !== username) {
                 return res.status(400).json({ 
                     error: "Admin already exists! Multiple admins are not allowed. ❌" 
@@ -34,18 +29,16 @@ router.post('/signup', async (req, res) => {
             }
         }
 
-        // 2. 🔄 CHECK DUPLICATE EMAIL: Kya ye email pehle se database mein hai?
+        // 2. 🔄 CHECK DUPLICATE EMAIL
         const [existingUser] = await db.execute("SELECT id, role FROM users WHERE username = ?", [username]);
 
         if (existingUser.length > 0) {
             const hashedPassword = await bcrypt.hash(password, 10);
-            
-            // Record update call
             await db.execute('UPDATE users SET password_hash = ?, role = ? WHERE username = ?', [hashedPassword, finalRole, username]);
             return res.status(200).json({ message: `Account updated successfully to ${frontendRole}! 🚀` });
         }
 
-        // 3. ✨ FRESH REGISTRATION: Naye user ke liye query execution
+        // 3. ✨ FRESH REGISTRATION
         const hashedPassword = await bcrypt.hash(password, 10);
         await db.execute('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', [username, hashedPassword, finalRole]);
         
@@ -69,16 +62,21 @@ router.post('/login', async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Server error" }); }
 });
 
-// 1. 📝 TASKER ACTION: Apply for a new leave request
+// 1. 📝 TASKER ACTION: Apply for a new leave request (Fixed Undefined Username Issue)
 router.post('/leaves/apply', verifyToken, async (req, res) => {
     const { fromDate, toDate, reason } = req.body;
-    const username = req.user.username; // token verification se username nikal jayega
+    const userId = req.user.id; // Safe extraction from middleware token payload
 
     try {
-        // Status automatically default 'Pending' set hoga database insert ke waqt
+        // ✅ Token ki jagah direct DB se exact user email nikal rahe hain taaki save fail na ho
+        const [users] = await db.execute('SELECT username FROM users WHERE id = ?', [userId]);
+        if (users.length === 0) return res.status(404).json({ error: "User not found" });
+        
+        const actualUsername = users[0].username;
+
         await db.execute(
             'INSERT INTO leaves (username, fromDate, toDate, reason, status) VALUES (?, ?, ?, ?, ?)',
-            [username, fromDate, toDate, reason, 'Pending']
+            [actualUsername, fromDate, toDate, reason, 'Pending']
         );
         res.status(201).json({ message: "Leave applied successfully" });
     } catch (err) {
@@ -88,17 +86,39 @@ router.post('/leaves/apply', verifyToken, async (req, res) => {
 
 // 2. 👤 TASKER ACTION: Fetch only this specific logged-in user's leaves
 router.get('/leaves/my-leaves', verifyToken, async (req, res) => {
-    const username = req.user.username;
+    const userId = req.user.id;
     try {
+        const [users] = await db.execute('SELECT username FROM users WHERE id = ?', [userId]);
+        if (users.length === 0) return res.status(404).json({ error: "User not found" });
+
         const [myLeaves] = await db.execute(
             'SELECT * FROM leaves WHERE username = ? ORDER BY id DESC',
-            [username]
+            [users[0].username]
         );
         res.json(myLeaves);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
+// 👑 ADMIN ACTION: Fetch all leaves across the system (Required for Admin Tab)
+router.get('/leaves', verifyToken, async (req, res) => {
+    try {
+        const [leaves] = await db.execute('SELECT * FROM leaves ORDER BY id DESC');
+        res.json(leaves);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 👑 ADMIN ACTION: Approve or Reject a Leave request
+router.put('/leaves/:id', verifyToken, async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body; 
+    try {
+        await db.execute('UPDATE leaves SET status = ? WHERE id = ?', [status, id]);
+        res.json({ message: `Leave status updated to ${status}` });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // GET /me
 router.get('/me', verifyToken, async (req, res) => {
     try {

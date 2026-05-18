@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [userData, setUserData] = useState({ fullName: 'Loading...', role: 'Member', username: '' });
+  const [userData, setUserData] = useState({ fullName: 'Loading...', role: 'Member', username: localStorage.getItem('username') || '' });
   const [projects, setProjects] = useState([]);
   const [newTask, setNewTask] = useState({ title: '', description: '', project_id: '' });
   
@@ -21,72 +21,89 @@ const Dashboard = () => {
   const [leaveRequests, setLeaveRequests] = useState([]); 
   const [leaveForm, setLeaveForm] = useState({ fromDate: '', toDate: '', reason: '' });
 
-  // 🔄 DAILY 8:00 AM AUTO-RESET CHECK LOGIC
-  const checkAndResetDailyShift = () => {
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const lastResetDate = localStorage.getItem('praphool_last_reset_date');
-
-    const resetTimeToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 0, 0);
-
-    if (lastResetDate !== todayStr && now >= resetTimeToday) {
-      localStorage.removeItem('praphool_isPunchedIn');
-      localStorage.removeItem('praphool_punchInTime');
-      localStorage.removeItem('praphool_punchOutTime');
-      localStorage.setItem('praphool_punchCount', '0');
-      localStorage.setItem('praphool_isShiftOver', 'false');
-      localStorage.setItem('praphool_accumulatedSessionTime', '0');
-      localStorage.setItem('praphool_last_reset_date', todayStr);
-    }
-  };
-
-  useState(() => {
-    checkAndResetDailyShift();
-  });
-
-  // 🔄 INITIALIZE SHIFT STATES WITH PERSISTENT LOCALSTORAGE DATA
-  const [isPunchedIn, setIsPunchedIn] = useState(() => {
-    return localStorage.getItem('praphool_isPunchedIn') === 'true';
-  });
-  const [seconds, setSeconds] = useState(0);
-  const [punchInTime, setPunchInTime] = useState(() => {
-    return localStorage.getItem('praphool_punchInTime') || "-";
-  });
-  const [punchOutTime, setPunchOutTime] = useState(() => {
-    return localStorage.getItem('praphool_punchOutTime') || "-";
-  });
-  const [punchCount, setPunchCount] = useState(() => {
-    return parseInt(localStorage.getItem('praphool_punchCount')) || 0;
-  });
-  const [isShiftOver, setIsShiftOver] = useState(() => {
-    return localStorage.getItem('praphool_isShiftOver') === 'true';
-  });
-  const [accumulatedSessionTime, setAccumulatedSessionTime] = useState(() => {
-    return parseInt(localStorage.getItem('praphool_accumulatedSessionTime')) || 0;
-  });
-
   const [expandedDates, setExpandedDates] = useState({});
   const [expandedInnerProjects, setExpandedInnerProjects] = useState({});
 
+  // LOCAL SCOPE USER DETERMINATION
+  const activeUserSessionEmail = localStorage.getItem('username') || 'global_tasker';
+
+  // ATTENDANCE DRIVER STATES WITH LOCALSTORAGE ISOLATION
+  const [isPunchedIn, setIsPunchedIn] = useState(() => localStorage.getItem(`praphool_isPunchedIn_${activeUserSessionEmail}`) === 'true');
+  const [seconds, setSeconds] = useState(() => parseInt(localStorage.getItem(`praphool_timer_seconds_${activeUserSessionEmail}`)) || 0);
+  const [punchInTime, setPunchInTime] = useState(() => localStorage.getItem(`praphool_punchInTime_${activeUserSessionEmail}`) || "-");
+  const [punchOutTime, setPunchOutTime] = useState(() => localStorage.getItem(`praphool_punchOutTime_${activeUserSessionEmail}`) || "-");
+  const [punchCount, setPunchCount] = useState(() => parseInt(localStorage.getItem(`praphool_punchCount_${activeUserSessionEmail}`)) || 0);
+  const [isShiftOver, setIsShiftOver] = useState(() => localStorage.getItem(`praphool_isShiftOver_${activeUserSessionEmail}`) === 'true');
+  const [accumulatedSessionTime, setAccumulatedSessionTime] = useState(() => parseInt(localStorage.getItem(`praphool_accumulatedSessionTime_${activeUserSessionEmail}`)) || 0);
+
+  // MASTER DATA DATA RESERVOIR STATE
   const [tasks, setTasks] = useState(() => {
-    const savedTasks = localStorage.getItem('praphool_tasks_backup');
-    return savedTasks ? JSON.parse(savedTasks) : [];
+    const userKey = localStorage.getItem('username') || 'global_tasker';
+    const savedLocalTasks = localStorage.getItem(`praphool_tasks_backup_${userKey}`);
+    return savedLocalTasks ? JSON.parse(savedLocalTasks) : [];
   });
 
-  useEffect(() => {
-    localStorage.setItem('praphool_tasks_backup', JSON.stringify(tasks));
-  }, [tasks]);
+  // DAILY 8:00 AM AUTO-RESET CHECK LOGIC
+  const checkAndResetDailyShift = (userEmail) => {
+    if (!userEmail) return;
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const lastResetDate = localStorage.getItem(`praphool_last_reset_date_${userEmail}`);
+    const resetTimeToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 0, 0);
 
-  useEffect(() => {
-    localStorage.setItem('praphool_isPunchedIn', isPunchedIn);
-    localStorage.setItem('praphool_punchInTime', punchInTime);
-    localStorage.setItem('praphool_punchOutTime', punchOutTime);
-    localStorage.setItem('praphool_punchCount', punchCount);
-    localStorage.setItem('praphool_isShiftOver', isShiftOver);
-    localStorage.setItem('praphool_accumulatedSessionTime', accumulatedSessionTime);
-  }, [isPunchedIn, punchInTime, punchOutTime, punchCount, isShiftOver, accumulatedSessionTime]);
+    if (lastResetDate !== todayStr && now >= resetTimeToday) {
+      localStorage.removeItem(`praphool_isPunchedIn_${userEmail}`);
+      localStorage.removeItem(`praphool_punchInTime_${userEmail}`);
+      localStorage.removeItem(`praphool_punchOutTime_${userEmail}`);
+      localStorage.setItem(`praphool_punchCount_${userEmail}`, '0');
+      localStorage.setItem(`praphool_isShiftOver_${userEmail}`, 'false');
+      localStorage.setItem(`praphool_accumulatedSessionTime_${userEmail}`, '0');
+      localStorage.setItem(`praphool_timer_seconds_${userEmail}`, '0');
+      localStorage.setItem(`praphool_last_reset_date_${userEmail}`, todayStr);
 
-  // ✅ INJECT WINDOW STYLES TO FORCE RAW HTML BODY TO REMAIN PITCH BLACK
+      setIsPunchedIn(false);
+      setSeconds(0);
+      setPunchInTime("-");
+      setPunchOutTime("-");
+      setPunchCount(0);
+      setIsShiftOver(false);
+      setAccumulatedSessionTime(0);
+    }
+  };
+
+  // ATTENDANCE EFFECT WRITER
+  useEffect(() => {
+    localStorage.setItem(`praphool_isPunchedIn_${activeUserSessionEmail}`, isPunchedIn);
+    localStorage.setItem(`praphool_timer_seconds_${activeUserSessionEmail}`, seconds);
+    localStorage.setItem(`praphool_punchInTime_${activeUserSessionEmail}`, punchInTime);
+    localStorage.setItem(`praphool_punchOutTime_${activeUserSessionEmail}`, punchOutTime);
+    localStorage.setItem(`praphool_punchCount_${activeUserSessionEmail}`, punchCount);
+    localStorage.setItem(`praphool_isShiftOver_${activeUserSessionEmail}`, isShiftOver);
+    localStorage.setItem(`praphool_accumulatedSessionTime_${activeUserSessionEmail}`, accumulatedSessionTime);
+  }, [isPunchedIn, seconds, punchInTime, punchOutTime, punchCount, isShiftOver, accumulatedSessionTime, activeUserSessionEmail]);
+
+  // SYNC TASK TO LOCALSTORAGE
+  useEffect(() => {
+    if (tasks) {
+      localStorage.setItem(`praphool_tasks_backup_${activeUserSessionEmail}`, JSON.stringify(tasks));
+    }
+  }, [tasks, activeUserSessionEmail]);
+
+  // GLOBAL CLICK DISMISSAL
+  useEffect(() => {
+    const handleGlobalClickDismissal = (event) => {
+      if (!event.target.closest('#praphool-header-avatar') && !event.target.closest('#praphool-notification-trigger')) {
+        showHeaderDropdown(false);
+        setShowNotificationDropdown(false);
+      }
+      if (!event.target.closest('#praphool_sidebar_settings_trigger')) {
+        setShowSettingsMenu(false);
+      }
+    };
+    document.addEventListener('click', handleGlobalClickDismissal);
+    return () => document.removeEventListener('click', handleGlobalClickDismissal);
+  }, []);
+
   useEffect(() => {
     document.body.style.backgroundColor = '#000000';
     document.body.style.margin = '0';
@@ -102,42 +119,21 @@ const Dashboard = () => {
     `;
     document.head.appendChild(styleSheet);
     
-    return () => {
-      document.head.removeChild(styleSheet);
-    };
-  }, []);
-
-  // ✅ GLOBAL CLICK LISTENER: Screen par kahin bhi click karne par dropdowns auto-close ho jayenge
-  useEffect(() => {
-    const handleGlobalClickDismissal = (event) => {
-      if (!event.target.closest('#praphool-header-avatar') && !event.target.closest('#praphool-notification-trigger')) {
-        setShowHeaderDropdown(false);
-        setShowNotificationDropdown(false);
-      }
-      if (!event.target.closest('#praphool_sidebar_settings_trigger')) {
-        setShowSettingsMenu(false);
-      }
-    };
-
-    document.addEventListener('click', handleGlobalClickDismissal);
-    return () => {
-      document.removeEventListener('click', handleGlobalClickDismissal);
-    };
-  }, []);
-
-  useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) navigate('/login');
-    fetchUserData();
-    fetchTasks();
-    fetchProjects();
-    fetchMyLeaveStatus(); 
     
-    const resetTimer = setInterval(() => {
-      checkAndResetDailyShift();
-    }, 60000); 
-    return () => clearInterval(resetTimer);
-  }, []);
+    checkAndResetDailyShift(activeUserSessionEmail);
+    fetchUserData();
+    fetchProjects();
+    fetchTasks();
+    fetchMyLeaveStatus();
+
+    const resetTimer = setInterval(() => { checkAndResetDailyShift(activeUserSessionEmail); }, 60000); 
+    return () => {
+      clearInterval(resetTimer);
+      document.head.removeChild(styleSheet);
+    };
+  }, [activeUserSessionEmail, activeTab]);
 
   useEffect(() => {
     let interval = null;
@@ -152,17 +148,13 @@ const Dashboard = () => {
   useEffect(() => {
     let timer = null;
     if (isButtonDisabled && cooldownTime > 0) {
-      timer = setInterval(() => {
-        setCooldownTime(prev => prev - 1);
-      }, 1000);
-    } else if (cooldownTime === 0) {
-      setIsButtonDisabled(false);
-    }
+      timer = setInterval(() => { setCooldownTime(prev => prev - 1); }, 1000);
+    } else if (cooldownTime === 0) setIsButtonDisabled(false);
     return () => clearInterval(timer);
   }, [isButtonDisabled, cooldownTime]);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem('token'); 
     alert("Logged out successfully! 👋");
     navigate('/login');
   };
@@ -172,7 +164,10 @@ const Dashboard = () => {
       const res = await axios.get('https://team-task-manager-production-fb15.up.railway.app/api/auth/me', {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      if (res.data) setUserData(res.data);
+      if (res.data) {
+        setUserData(res.data);
+        if (res.data.username) localStorage.setItem('username', res.data.username);
+      }
     } catch (err) { if(err.response?.status === 401) handleLogout(); }
   };
 
@@ -181,26 +176,32 @@ const Dashboard = () => {
       const res = await axios.get('https://team-task-manager-production-fb15.up.railway.app/api/auth/leaves/my-leaves', {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      if (res.data && Array.isArray(res.data)) {
-        setLeaveRequests(res.data);
-      }
-    } catch (err) { console.error("Database leaves pull offline", err); }
+      if (res.data && Array.isArray(res.data)) setLeaveRequests(res.data);
+    } catch (err) { console.error(err); }
   };
 
+  // ✅ ANTIDOTE MERGE LOGIC: Server data and local data combined dynamically to prevent any type of dropouts
   const fetchTasks = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
     try {
       const res = await axios.get('https://team-task-manager-production-fb15.up.railway.app/api/tasks', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        const serverTasks = res.data;
-        setTasks(prev => {
-          const localOnly = prev.filter(pt => !serverTasks.some(st => st.id === pt.id));
-          const combined = [...localOnly, ...serverTasks];
-          return combined.sort((a, b) => b.id - a.id);
-        });
+      if (res.data && Array.isArray(res.data)) {
+        const serverData = res.data;
+        const localTasks = JSON.parse(localStorage.getItem(`praphool_tasks_backup_${activeUserSessionEmail}`) || '[]');
+        
+        // Filter out items that are present locally but missing or unindexed on backend rows
+        const uniqueLocals = localTasks.filter(lt => !serverData.some(st => String(st.id) === String(lt.id)));
+        
+        // Merge both tracks together securely
+        const finalMerged = [...uniqueLocals, ...serverData].sort((a, b) => b.id - a.id);
+        
+        setTasks(finalMerged);
+        localStorage.setItem(`praphool_tasks_backup_${activeUserSessionEmail}`, JSON.stringify(finalMerged));
       }
-    } catch (err) { console.error("Relying on storage layers", err); }
+    } catch (err) { console.error(err); }
   };
 
   const fetchProjects = async () => {
@@ -208,22 +209,17 @@ const Dashboard = () => {
       const res = await axios.get('https://team-task-manager-production-fb15.up.railway.app/api/projects', {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      if (res.data && res.data.length > 0) {
-        setProjects(res.data);
-      } else {
-        setProjects([
-          {id: 1, name: 'GEO Sentiment Analyzer'}, 
-          {id: 2, name: 'Face Recognition Attendance System'}, 
-          {id: 3, name: 'Portfolio Website Showcase'}
-        ]);
-      }
-    } catch (err) {
-      setProjects([
-        {id: 1, name: 'GEO Sentiment Analyzer'}, 
-        {id: 2, name: 'Face Recognition Attendance System'}, 
-        {id: 3, name: 'Portfolio Website Showcase'}
-      ]);
-    }
+      if (res.data && res.data.length > 0) setProjects(res.data);
+      else setDefaultProjects();
+    } catch (err) { setDefaultProjects(); }
+  };
+
+  const setDefaultProjects = () => {
+    setProjects([
+      {id: 1, name: 'GEO Sentiment Analyzer'}, 
+      {id: 2, name: 'Face Recognition Attendance System'}, 
+      {id: 3, name: 'Portfolio Website Showcase'}
+    ]);
   };
 
   const handleCreateTask = async (e) => {
@@ -242,14 +238,16 @@ const Dashboard = () => {
       project_id: selectedProjId,
       status: 'In Progress',
       timestamp: Date.now(), 
-      created_date: today
+      created_date: today,
+      username: activeUserSessionEmail
     };
 
-    setTasks(prev => [immediateTaskObject, ...prev]);
+    const nextTaskList = [immediateTaskObject, ...tasks];
+    setTasks(nextTaskList);
+    localStorage.setItem(`praphool_tasks_backup_${activeUserSessionEmail}`, JSON.stringify(nextTaskList));
+    
     setCurrentCreatedTaskId(temporaryId);
-
     setNewTask({ title: '', description: '', project_id: '' });
-    alert("Task Created Successfully! Wait 2 minutes to submit it as completed. 🚀");
     
     setIsButtonDisabled(true);
     setCooldownTime(120);
@@ -264,24 +262,32 @@ const Dashboard = () => {
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      
       if (res.data && res.data.id) {
         setCurrentCreatedTaskId(res.data.id);
+        // Swap IDs locally inside active arrays instantly
         setTasks(prev => prev.map(t => t.id === temporaryId ? { ...t, id: res.data.id } : t));
       }
-    } catch (error) { console.log("Saved locally in database branch log pool"); }
+      fetchTasks(); 
+    } catch (error) { console.log(error); }
   };
 
+  // ✅ FOOLPROOF SUBMIT LOGIC: Scans list arrays dynamically, flags status, and commits updates safely
   const handleSubmitTask = async () => {
-    let targetId = currentCreatedTaskId;
-    if (!targetId && tasks.length > 0) {
-      const activeInProg = tasks.find(t => t.status === 'In Progress');
-      targetId = activeInProg ? activeInProg.id : tasks[0].id;
+    let targetTask = tasks.find(t => String(t.id) === String(currentCreatedTaskId));
+    if (!targetTask) {
+      targetTask = tasks.find(t => t.status === 'In Progress');
     }
-
-    if (!targetId) return alert("Pehle koi active task create kijiye!");
     
+    if (!targetTask) {
+      return alert("Pehle koi active task create kijiye!");
+    }
+    
+    const targetId = targetTask.id;
+
     try {
+      // Direct optimistic update local state to preserve visuals immediately
+      markAsComplete(targetId);
+
       await axios.put(`https://team-task-manager-production-fb15.up.railway.app/api/tasks/${targetId}`, {
         status: 'Completed'
       }, {
@@ -289,43 +295,51 @@ const Dashboard = () => {
       });
 
       alert("Task permanently submitted as Completed! ✅");
-      markAsComplete(targetId);
       setCurrentCreatedTaskId(null); 
+      
+      // Delay pull to let remote database indexes compile completely
+      setTimeout(() => { fetchTasks(); }, 1500);
     } catch (err) {
       markAsComplete(targetId);
-      alert("Task permanently submitted as Completed! ✅");
+      alert("Task submitted locally! ✅");
       setCurrentCreatedTaskId(null);
+      setTimeout(() => { fetchTasks(); }, 1500);
     }
   };
 
   const markAsComplete = (taskId) => {
-    setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, status: 'Completed', created_date: new Date().toISOString().split('T')[0] } : t));
+    const todayStr = new Date().toISOString().split('T')[0];
+    const freshTasks = tasks.map(t => {
+      if (String(t.id) === String(taskId) || t.status === 'In Progress') {
+        return { 
+          ...t, 
+          status: 'Completed', 
+          created_date: todayStr, 
+          timestamp: Date.now() 
+        };
+      }
+      return t;
+    });
+    setTasks(freshTasks);
+    localStorage.setItem(`praphool_tasks_backup_${activeUserSessionEmail}`, JSON.stringify(freshTasks));
   };
 
   const handlePunchToggle = () => {
     if (isShiftOver) return alert("Shift Ended! Aapko agle din subah 8:00 AM tak ka wait karna padega. ❌");
-
     const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     if (!isPunchedIn) {
       if (punchCount < 2) {
-        setIsPunchedIn(true);
-        setPunchInTime(currentTime);
-        setPunchOutTime("-");
-        setSeconds(0); 
-      } else { 
-        setIsShiftOver(true);
-        alert("Shift Ended! Saare sessions exhausted ho chuke hain. Lock active till 8:00 AM next morning. ❌"); 
-      }
+        setIsPunchedIn(true); setPunchInTime(currentTime); setPunchOutTime("-"); setSeconds(0); 
+      } else { setIsShiftOver(true); alert("Shift Ended! Lock active till 8:00 AM next morning. ❌"); }
     } else {
       const currentCount = punchCount + 1;
-      setIsPunchedIn(false);
-      setPunchOutTime(currentTime);
-      setPunchCount(currentCount);
+      setIsPunchedIn(false); setPunchOutTime(currentTime); setPunchCount(currentCount);
       setAccumulatedSessionTime(prev => prev + seconds); 
       setSeconds(0); 
+      localStorage.setItem(`praphool_timer_seconds_${activeUserSessionEmail}`, '0');
       if (currentCount >= 2) {
-        setIsShiftOver(true);
-        alert("Shift Completed permanently! All options are now locked till tomorrow 8:00 AM. 🔒");
+        setIsShiftOver(true); alert("Shift Completed permanently! All options are now locked till tomorrow 8:00 AM. 🔒");
       }
     }
   };
@@ -334,13 +348,10 @@ const Dashboard = () => {
     e.preventDefault();
     try {
       await axios.post('https://team-task-manager-production-fb15.up.railway.app/api/auth/leaves/apply', {
-        fromDate: leaveForm.fromDate,
-        toDate: leaveForm.toDate,
-        reason: leaveForm.reason
+        fromDate: leaveForm.fromDate, toDate: leaveForm.toDate, reason: leaveForm.reason
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-
       alert("Leave request submitted directly to Admin database! 📄");
       setLeaveForm({ fromDate: '', toDate: '', reason: '' });
       setShowLeaveModal(false);
@@ -361,21 +372,13 @@ const Dashboard = () => {
     return project ? project.name : "Independent Tasks / General";
   };
 
-  const toggleDateAccordion = (dateStr) => {
-    setExpandedDates(prev => ({ ...prev, [dateStr]: !prev[dateStr] }));
-  };
-
-  const toggleProjectAccordion = (dateStr, projId) => {
-    const combinedKey = `${dateStr}_${projId}`;
-    setExpandedInnerProjects(prev => ({ ...prev, [combinedKey]: !prev[combinedKey] }));
-  };
+  const toggleDateAccordion = (dateStr) => { setExpandedDates(prev => ({ ...prev, [dateStr]: !prev[dateStr] })); };
+  const toggleProjectAccordion = (dateStr, projId) => { setExpandedInnerProjects(prev => ({ ...prev, [`${dateStr}_${projId}`]: !prev[`${dateStr}_${projId}`] })); };
 
   const getDateLabel = (dateStr) => {
     const todayStr = new Date().toISOString().split('T')[0];
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
-
     if (dateStr === todayStr) return "Today";
     if (dateStr === yesterdayStr) return "Yesterday";
     return dateStr; 
@@ -395,21 +398,19 @@ const Dashboard = () => {
   }, {});
 
   const orderedUniqueDates = Object.keys(tasksByDate).sort((a, b) => new Date(b) - new Date(a));
-
   const triggerNotificationDropdown = (e) => { e.stopPropagation(); setShowNotificationDropdown(!showNotificationDropdown); setShowHeaderDropdown(false); };
   const triggerHeaderDropdown = (e) => { e.stopPropagation(); setShowHeaderDropdown(!showHeaderDropdown); setShowNotificationDropdown(false); };
   const triggerSidebarSettingsMenu = (e) => { e.stopPropagation(); setShowSettingsMenu(!showSettingsMenu); };
 
   return (
     <div style={styles.appContainer}>
-      {/* Sidebar Layout */}
       <div style={styles.sidebar}>
-        <div style={styles.logoSection}><div style={styles.logoIcon}>TT</div><span style={styles.logoText}>Task Tracker</span></div>
+        <div style={styles.logoSection}><div style={styles.logoIcon}>TT</div><span style={styles.logoText}>Task Track</span></div>
         <div style={{...styles.userProfileSide, cursor: 'pointer'}} onClick={() => setActiveTab('dashboard')}>
-          <div style={styles.avatarLarge}>{userData.username ? userData.username.charAt(0).toUpperCase() : 'P'}V</div>
+          <div style={styles.avatarLarge}>{activeUserSessionEmail ? activeUserSessionEmail.charAt(0).toUpperCase() : 'P'}V</div>
           <div>
-            <div style={styles.userNameSide}>{userData.username || 'tasker@gmail.com'}</div>
-            <div style={styles.userRoleBadge}>{userData.role || 'Member'}</div>
+            <div style={styles.userNameSide}>{activeUserSessionEmail}</div>
+            <div style={styles.userRoleBadge}>{userData?.role || 'Member'}</div>
           </div>
         </div>
         <nav style={styles.navLinks}>
@@ -428,7 +429,6 @@ const Dashboard = () => {
         <div style={styles.signOutPos} onClick={handleLogout}><div style={{...styles.navItem, color: '#ef4444'}}>↪ Sign Out</div></div>
       </div>
 
-      {/* Main Wrapper Container */}
       <div style={styles.mainWrapper}>
         <header style={styles.topHeader}>
           <div style={styles.headerRight}>
@@ -445,10 +445,10 @@ const Dashboard = () => {
             <div id="praphool-header-avatar" style={{position: 'relative'}}>
               <div style={styles.professionalAvatarWrapper} onClick={triggerHeaderDropdown}>
                 <div style={styles.avatarSmallProfessional}>
-                  {userData.username ? userData.username.charAt(0).toUpperCase() : 'P'}
+                  {activeUserSessionEmail ? activeUserSessionEmail.charAt(0).toUpperCase() : 'P'}
                 </div>
                 <span style={styles.professionalEmailText}>
-                  {userData.username || 'tasker@gmail.com'}
+                  {activeUserSessionEmail}
                 </span>
                 <span style={styles.dropdownArrowSymbol}>▼</span>
               </div>
@@ -465,7 +465,7 @@ const Dashboard = () => {
           {activeTab === 'dashboard' && (
             <>
               <h1 style={styles.pageTitle}>My Dashboard</h1>
-              <p style={styles.subText}>Welcome back, {userData.username}</p>
+              <p style={styles.subText}>Welcome back, {activeUserSessionEmail}</p>
               
               <div style={styles.timerCard}>
                 <div style={styles.timerGrid}>
@@ -505,7 +505,6 @@ const Dashboard = () => {
                   <form onSubmit={handleCreateTask} style={styles.formStack}>
                     <input style={styles.inputFieldFixed} placeholder="Task Title *" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} required />
                     
-                    {/* ✅ UPDATED DROPDOWN AND SELECT ELEMENT WITH PROFESIONAL STYLING */}
                     <select 
                       style={styles.dropdownInputFieldStyle} 
                       value={newTask.project_id} 
@@ -564,7 +563,7 @@ const Dashboard = () => {
                       recentTasksFiltered.map(task => (
                         <div key={task.id} style={styles.taskItem}>
                           <div><div style={{fontWeight: 'bold', color: '#fff'}}>{task.title}</div><div style={{fontSize: '14px', color: '#888'}}>{task.description || 'No description'}</div></div>
-                          <div style={{...styles.statusBadge, background: task.status === 'Completed' ? '#00e676' : '#f59e0b'}}>
+                          <div style={{...styles.statusBadge, background: task.status === 'Completed' ? 'rgba(0, 230, 118, 0.2)' : 'rgba(245, 158, 11, 0.2)', color: task.status === 'Completed' ? '#00e676' : '#f59e0b', border: `1px solid ${task.status === 'Completed' ? '#00e676' : '#f59e0b'}`}}>
                             {task.status}
                           </div>
                         </div>
@@ -692,7 +691,7 @@ const Dashboard = () => {
                   {(punchCount > 0 || isPunchedIn) ? (
                     <tr style={styles.trRowTable}>
                       <td style={styles.tdCell}>{new Date().toLocaleDateString()}</td>
-                      <td style={styles.tdCell}>{userData.username || 'N/A'}</td>
+                      <td style={styles.tdCell}>{activeUserSessionEmail}</td>
                       <td style={styles.tdCell}>
                         <span style={{color: (accumulatedSessionTime + seconds) >= 25200 ? '#00e676' : '#ef4444', fontWeight: 'bold'}}>
                           {(accumulatedSessionTime + seconds) >= 25200 ? 'PRESENT' : 'ABSENT'}
@@ -719,7 +718,7 @@ const Dashboard = () => {
                   leaveRequests.map(req => (
                     <div key={req.id} style={{ ...styles.taskItem, flexDirection: 'column', alignItems: 'flex-start', padding: '20px', gap: '10px', marginBottom: '15px' }}>
                       <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#00bcd4' }}>👤 {req.name || userData.fullName}</span>
+                        <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#00bcd4' }}>👤 Username / Email: {req.username}</span>
                         <span style={{ 
                           ...styles.statusBadge, 
                           background: 'rgba(255,255,255,0.02)', 
@@ -729,9 +728,8 @@ const Dashboard = () => {
                           {req.status ? req.status.toUpperCase() : 'PENDING'}
                         </span>
                       </div>
-                      <div style={{ fontSize: '14px', color: '#888' }}>📧 {req.email || userData.username}</div>
-                      <div style={{ fontSize: '15px', color: '#daffde' }}>📅 <strong>Duration:</strong> {req.fromDate} <span style={{color:'#00bcd4'}}>to</span> {req.toDate}</div>
-                      <div style={{ fontSize: '15px', color: '#fff', background: '#0a0a0a', padding: '10px', borderRadius: '8px', width: '100%', border: '1px solid #1a1a1a' }}>📝 <strong>Reason:</strong> {req.reason}</div>
+                      <div style={{ fontSize: '15px', color: '#daffde' }}>📅 <strong>Duration (From - To):</strong> {req.fromDate} <span style={{color:'#00bcd4'}}>to</span> {req.toDate}</div>
+                      <div style={{ fontSize: '15px', color: '#fff', background: '#050505', padding: '12px', borderRadius: '8px', width: '100%', border: '1px solid #111111' }}>📝 <strong>Reason Details:</strong> {req.reason}</div>
                     </div>
                   ))}
               </div>
@@ -816,7 +814,7 @@ const styles = {
     tableStatusBadge: { fontWeight: 'bold', fontSize: '14px' },
     modalOverlayContext: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10000 },
     modalContentCard: { background: '#050505', padding: '30px', borderRadius: '24px', border: '1px solid #111111', width: '500px' },
-    applyLeaveTriggerBtn: { background: '#00bcd4', color: 'black', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor:'pointer' },
+    applyLeaveTriggerBtn: { background: '#00bcd4', color: 'black', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
     headerRowFlex: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom:'20px' },
     viewPanel: { animation: 'fadeIn 0.25s ease-in-out' },
     chronologicalWrapperDateCard: { background: '#050505', border: '1px solid #111111', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' },
@@ -825,10 +823,12 @@ const styles = {
     totalTasksCountBadgeMini: { background: 'rgba(0, 188, 212, 0.12)', color: '#00bcd4', fontSize: '12px', padding: '3px 10px', borderRadius: '20px', fontWeight: 'bold' },
     innerProjectSubWrapperBlock: { border: '1px solid #111111', borderRadius: '8px', overflow:'hidden', background: '#050505' },
     innerProjectSectionBannerTitle: { background: '#0a0d14', padding: '12px 18px', fontWeight: '600', fontSize: '14px', color: '#fff', transition: '0.2s' },
-    
-    // ✅ ADDED DRIVER STYLES FOR THE PROJECT SELECT DROPDOWN OVERRIDES
     dropdownInputFieldStyle: { background: '#0a0a0a', border: '1px solid #1a1a1a', borderRadius: '10px', color: '#ffffff', padding: '15px', fontSize: '16px', outline: 'none', width: '100%', cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none' },
-    dropdownOptionStyle: { background: '#0d0d0d', color: '#ffffff', padding: '15px', fontSize: '16px' }
+    dropdownOptionStyle: { background: '#0d0d0d', color: '#ffffff', padding: '15px', fontSize: '16px' },
+    inputFieldModal: { background: '#0a0a0a', border: '1px solid #1a1a1a', borderRadius: '10px', color: '#fff', padding: '12px', fontSize: '16px', width: '100%', outline: 'none', marginBottom: '15px' },
+    modalHeaderFlex: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#fff', marginBottom: '20px' },
+    modalActionRowEnd: { display: 'flex', justifyContent: 'flex-end', gap: '15px', marginTop: '10px' },
+    modalSubmitBtn: { background: '#00bcd4', color: '#000', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }
 };
 
 export default Dashboard;

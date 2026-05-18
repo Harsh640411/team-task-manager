@@ -5,19 +5,15 @@ import axios from 'axios';
 const Dashboard = () => {
   const navigate = useNavigate();
   const [userData, setUserData] = useState({ fullName: 'Loading...', role: 'Member', username: '' });
-  const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [newTask, setNewTask] = useState({ title: '', description: '', project_id: '' });
   
-  // Cooldown and Manual tracking states
   const [isButtonDisabled, setIsButtonDisabled] = useState(false);
   const [cooldownTime, setCooldownTime] = useState(0);
   const [currentCreatedTaskId, setCurrentCreatedTaskId] = useState(null);
 
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  const [showThemeSubMenu, setShowThemeSubMenu] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState('Dark');
   const [showHeaderDropdown, setShowHeaderDropdown] = useState(false);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
   
@@ -25,14 +21,109 @@ const Dashboard = () => {
   const [leaveRequests, setLeaveRequests] = useState([]); 
   const [leaveForm, setLeaveForm] = useState({ fromDate: '', toDate: '', reason: '' });
 
-  const [isPunchedIn, setIsPunchedIn] = useState(false);
+  // 🔄 DAILY 8:00 AM AUTO-RESET CHECK LOGIC
+  const checkAndResetDailyShift = () => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const lastResetDate = localStorage.getItem('praphool_last_reset_date');
+
+    const resetTimeToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 0, 0);
+
+    if (lastResetDate !== todayStr && now >= resetTimeToday) {
+      localStorage.removeItem('praphool_isPunchedIn');
+      localStorage.removeItem('praphool_punchInTime');
+      localStorage.removeItem('praphool_punchOutTime');
+      localStorage.setItem('praphool_punchCount', '0');
+      localStorage.setItem('praphool_isShiftOver', 'false');
+      localStorage.setItem('praphool_accumulatedSessionTime', '0');
+      localStorage.setItem('praphool_last_reset_date', todayStr);
+    }
+  };
+
+  useState(() => {
+    checkAndResetDailyShift();
+  });
+
+  // 🔄 INITIALIZE SHIFT STATES WITH PERSISTENT LOCALSTORAGE DATA
+  const [isPunchedIn, setIsPunchedIn] = useState(() => {
+    return localStorage.getItem('praphool_isPunchedIn') === 'true';
+  });
   const [seconds, setSeconds] = useState(0);
-  const [punchInTime, setPunchInTime] = useState("-");
-  const [punchOutTime, setPunchOutTime] = useState("-");
-  
-  const [punchCount, setPunchCount] = useState(0); 
-  const [isShiftOver, setIsShiftOver] = useState(false);
-  const [accumulatedSessionTime, setAccumulatedSessionTime] = useState(0); 
+  const [punchInTime, setPunchInTime] = useState(() => {
+    return localStorage.getItem('praphool_punchInTime') || "-";
+  });
+  const [punchOutTime, setPunchOutTime] = useState(() => {
+    return localStorage.getItem('praphool_punchOutTime') || "-";
+  });
+  const [punchCount, setPunchCount] = useState(() => {
+    return parseInt(localStorage.getItem('praphool_punchCount')) || 0;
+  });
+  const [isShiftOver, setIsShiftOver] = useState(() => {
+    return localStorage.getItem('praphool_isShiftOver') === 'true';
+  });
+  const [accumulatedSessionTime, setAccumulatedSessionTime] = useState(() => {
+    return parseInt(localStorage.getItem('praphool_accumulatedSessionTime')) || 0;
+  });
+
+  const [expandedDates, setExpandedDates] = useState({});
+  const [expandedInnerProjects, setExpandedInnerProjects] = useState({});
+
+  const [tasks, setTasks] = useState(() => {
+    const savedTasks = localStorage.getItem('praphool_tasks_backup');
+    return savedTasks ? JSON.parse(savedTasks) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('praphool_tasks_backup', JSON.stringify(tasks));
+  }, [tasks]);
+
+  useEffect(() => {
+    localStorage.setItem('praphool_isPunchedIn', isPunchedIn);
+    localStorage.setItem('praphool_punchInTime', punchInTime);
+    localStorage.setItem('praphool_punchOutTime', punchOutTime);
+    localStorage.setItem('praphool_punchCount', punchCount);
+    localStorage.setItem('praphool_isShiftOver', isShiftOver);
+    localStorage.setItem('praphool_accumulatedSessionTime', accumulatedSessionTime);
+  }, [isPunchedIn, punchInTime, punchOutTime, punchCount, isShiftOver, accumulatedSessionTime]);
+
+  // ✅ INJECT WINDOW STYLES TO FORCE RAW HTML BODY TO REMAIN PITCH BLACK
+  useEffect(() => {
+    document.body.style.backgroundColor = '#000000';
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
+    
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = `
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: #000000; }
+      ::-webkit-scrollbar-thumb { background: #111111; border-radius: 4px; border: 1px solid #000000; }
+      ::-webkit-scrollbar-thumb:hover { background: #1a1a1a; }
+      html, body { background-color: #000000 !important; color-scheme: dark; overflow: hidden; }
+    `;
+    document.head.appendChild(styleSheet);
+    
+    return () => {
+      document.head.removeChild(styleSheet);
+    };
+  }, []);
+
+  // ✅ GLOBAL CLICK LISTENER: Screen par kahin bhi click karne par dropdowns auto-close ho jayenge
+  useEffect(() => {
+    const handleGlobalClickDismissal = (event) => {
+      if (!event.target.closest('#praphool-header-avatar') && !event.target.closest('#praphool-notification-trigger')) {
+        setShowHeaderDropdown(false);
+        setShowNotificationDropdown(false);
+      }
+      if (!event.target.closest('#praphool_sidebar_settings_trigger')) {
+        setShowSettingsMenu(false);
+      }
+    };
+
+    document.addEventListener('click', handleGlobalClickDismissal);
+    return () => {
+      document.removeEventListener('click', handleGlobalClickDismissal);
+    };
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -41,6 +132,11 @@ const Dashboard = () => {
     fetchTasks();
     fetchProjects();
     fetchMyLeaveStatus(); 
+    
+    const resetTimer = setInterval(() => {
+      checkAndResetDailyShift();
+    }, 60000); 
+    return () => clearInterval(resetTimer);
   }, []);
 
   useEffect(() => {
@@ -66,7 +162,7 @@ const Dashboard = () => {
   }, [isButtonDisabled, cooldownTime]);
 
   const handleLogout = () => {
-    localStorage.clear();
+    localStorage.removeItem('token');
     alert("Logged out successfully! 👋");
     navigate('/login');
   };
@@ -96,11 +192,15 @@ const Dashboard = () => {
       const res = await axios.get('https://team-task-manager-production-fb15.up.railway.app/api/tasks', {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      if (res.data && Array.isArray(res.data)) {
-        const sortedTasks = res.data.sort((a, b) => b.id - a.id);
-        setTasks(sortedTasks);
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+        const serverTasks = res.data;
+        setTasks(prev => {
+          const localOnly = prev.filter(pt => !serverTasks.some(st => st.id === pt.id));
+          const combined = [...localOnly, ...serverTasks];
+          return combined.sort((a, b) => b.id - a.id);
+        });
       }
-    } catch (err) { console.error("Tasks fetch error", err); }
+    } catch (err) { console.error("Relying on storage layers", err); }
   };
 
   const fetchProjects = async () => {
@@ -117,12 +217,12 @@ const Dashboard = () => {
           {id: 3, name: 'Portfolio Website Showcase'}
         ]);
       }
-    } catch (err) { 
+    } catch (err) {
       setProjects([
         {id: 1, name: 'GEO Sentiment Analyzer'}, 
         {id: 2, name: 'Face Recognition Attendance System'}, 
         {id: 3, name: 'Portfolio Website Showcase'}
-      ]); 
+      ]);
     }
   };
 
@@ -134,10 +234,30 @@ const Dashboard = () => {
     const today = new Date().toISOString().split('T')[0];
     const selectedProjId = newTask.project_id ? parseInt(newTask.project_id) : parseInt(projects[0]?.id || 1);
 
+    const temporaryId = Date.now();
+    const immediateTaskObject = {
+      id: temporaryId,
+      title: newTask.title,
+      description: newTask.description,
+      project_id: selectedProjId,
+      status: 'In Progress',
+      timestamp: Date.now(), 
+      created_date: today
+    };
+
+    setTasks(prev => [immediateTaskObject, ...prev]);
+    setCurrentCreatedTaskId(temporaryId);
+
+    setNewTask({ title: '', description: '', project_id: '' });
+    alert("Task Created Successfully! Wait 2 minutes to submit it as completed. 🚀");
+    
+    setIsButtonDisabled(true);
+    setCooldownTime(120);
+
     try {
       const res = await axios.post('https://team-task-manager-production-fb15.up.railway.app/api/tasks', {
-        title: newTask.title,
-        description: newTask.description,
+        title: immediateTaskObject.title,
+        description: immediateTaskObject.description,
         project_id: selectedProjId, 
         status: 'In Progress',
         due_date: today 
@@ -147,31 +267,16 @@ const Dashboard = () => {
       
       if (res.data && res.data.id) {
         setCurrentCreatedTaskId(res.data.id);
-      } else {
-        setCurrentCreatedTaskId(Date.now());
+        setTasks(prev => prev.map(t => t.id === temporaryId ? { ...t, id: res.data.id } : t));
       }
-      
-      setNewTask({ title: '', description: '', project_id: '' });
-      alert("Task Created Successfully! Wait 2 minutes to submit it as completed. 🚀");
-      
-      setIsButtonDisabled(true);
-      setCooldownTime(120); 
-      fetchTasks();
-    } catch (error) { 
-      const pseudoId = Date.now();
-      setCurrentCreatedTaskId(pseudoId);
-      setTasks(prev => [{ id: pseudoId, title: newTask.title, description: newTask.description, project_id: selectedProjId, status: 'In Progress' }, ...prev]);
-      setNewTask({ title: '', description: '', project_id: '' });
-      alert("Task Created Successfully! Wait 2 minutes to submit it as completed. 🚀");
-      setIsButtonDisabled(true);
-      setCooldownTime(120);
-    }
+    } catch (error) { console.log("Saved locally in database branch log pool"); }
   };
 
   const handleSubmitTask = async () => {
     let targetId = currentCreatedTaskId;
     if (!targetId && tasks.length > 0) {
-      targetId = tasks[0].id;
+      const activeInProg = tasks.find(t => t.status === 'In Progress');
+      targetId = activeInProg ? activeInProg.id : tasks[0].id;
     }
 
     if (!targetId) return alert("Pehle koi active task create kijiye!");
@@ -184,21 +289,22 @@ const Dashboard = () => {
       });
 
       alert("Task permanently submitted as Completed! ✅");
+      markAsComplete(targetId);
       setCurrentCreatedTaskId(null); 
-      fetchTasks(); 
     } catch (err) {
       markAsComplete(targetId);
       alert("Task permanently submitted as Completed! ✅");
       setCurrentCreatedTaskId(null);
-      fetchTasks();
     }
   };
 
-  const markAsComplete = async (taskId) => {
-    setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, status: 'Completed' } : t));
+  const markAsComplete = (taskId) => {
+    setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, status: 'Completed', created_date: new Date().toISOString().split('T')[0] } : t));
   };
 
   const handlePunchToggle = () => {
+    if (isShiftOver) return alert("Shift Ended! Aapko agle din subah 8:00 AM tak ka wait karna padega. ❌");
+
     const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     if (!isPunchedIn) {
       if (punchCount < 2) {
@@ -206,14 +312,21 @@ const Dashboard = () => {
         setPunchInTime(currentTime);
         setPunchOutTime("-");
         setSeconds(0); 
-      } else { alert("Shift Ended! ❌"); }
+      } else { 
+        setIsShiftOver(true);
+        alert("Shift Ended! Saare sessions exhausted ho chuke hain. Lock active till 8:00 AM next morning. ❌"); 
+      }
     } else {
+      const currentCount = punchCount + 1;
       setIsPunchedIn(false);
       setPunchOutTime(currentTime);
-      setPunchCount(prev => prev + 1);
+      setPunchCount(currentCount);
       setAccumulatedSessionTime(prev => prev + seconds); 
       setSeconds(0); 
-      if (punchCount + 1 >= 2) setIsShiftOver(true);
+      if (currentCount >= 2) {
+        setIsShiftOver(true);
+        alert("Shift Completed permanently! All options are now locked till tomorrow 8:00 AM. 🔒");
+      }
     }
   };
 
@@ -232,9 +345,7 @@ const Dashboard = () => {
       setLeaveForm({ fromDate: '', toDate: '', reason: '' });
       setShowLeaveModal(false);
       fetchMyLeaveStatus(); 
-    } catch (err) {
-      alert("Leave submission failed.");
-    }
+    } catch (err) { alert("Leave submission failed."); }
   };
 
   const formatTime = (sec) => {
@@ -250,28 +361,65 @@ const Dashboard = () => {
     return project ? project.name : "Independent Tasks / General";
   };
 
-  // ✅ FORCED INTEGER PARSING FOR DATA ARRAY SYNCHRONISATION MATCHES
-  const uniqueProjectIds = Array.isArray(tasks) ? [...new Set(tasks.map(t => parseInt(t.project_id)))] : [];
+  const toggleDateAccordion = (dateStr) => {
+    setExpandedDates(prev => ({ ...prev, [dateStr]: !prev[dateStr] }));
+  };
+
+  const toggleProjectAccordion = (dateStr, projId) => {
+    const combinedKey = `${dateStr}_${projId}`;
+    setExpandedInnerProjects(prev => ({ ...prev, [combinedKey]: !prev[combinedKey] }));
+  };
+
+  const getDateLabel = (dateStr) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    if (dateStr === todayStr) return "Today";
+    if (dateStr === yesterdayStr) return "Yesterday";
+    return dateStr; 
+  };
+
+  const recentTasksFiltered = tasks.filter(task => {
+    if (!task.timestamp) return true; 
+    const oneDayInMs = 24 * 60 * 60 * 1000;
+    return (Date.now() - task.timestamp) < oneDayInMs;
+  });
+
+  const tasksByDate = tasks.reduce((groups, task) => {
+    const dStr = task.created_date || new Date().toISOString().split('T')[0];
+    if (!groups[dStr]) groups[dStr] = [];
+    groups[dStr].push(task);
+    return groups;
+  }, {});
+
+  const orderedUniqueDates = Object.keys(tasksByDate).sort((a, b) => new Date(b) - new Date(a));
+
+  const triggerNotificationDropdown = (e) => { e.stopPropagation(); setShowNotificationDropdown(!showNotificationDropdown); setShowHeaderDropdown(false); };
+  const triggerHeaderDropdown = (e) => { e.stopPropagation(); setShowHeaderDropdown(!showHeaderDropdown); setShowNotificationDropdown(false); };
+  const triggerSidebarSettingsMenu = (e) => { e.stopPropagation(); setShowSettingsMenu(!showSettingsMenu); };
 
   return (
     <div style={styles.appContainer}>
+      {/* Sidebar Layout */}
       <div style={styles.sidebar}>
-        <div style={styles.logoSection}><div style={styles.logoIcon}>TT</div><span style={styles.logoText}>Task Track</span></div>
+        <div style={styles.logoSection}><div style={styles.logoIcon}>TT</div><span style={styles.logoText}>Task Tracker</span></div>
         <div style={{...styles.userProfileSide, cursor: 'pointer'}} onClick={() => setActiveTab('dashboard')}>
-          <div style={styles.avatarLarge}>{userData.fullName ? userData.fullName.charAt(0).toUpperCase() : 'P'}V</div>
+          <div style={styles.avatarLarge}>{userData.username ? userData.username.charAt(0).toUpperCase() : 'P'}V</div>
           <div>
-            <div style={styles.userNameSide}>{userData.fullName || userData.username}</div>
+            <div style={styles.userNameSide}>{userData.username || 'tasker@gmail.com'}</div>
             <div style={styles.userRoleBadge}>{userData.role || 'Member'}</div>
           </div>
         </div>
         <nav style={styles.navLinks}>
           <div style={{...styles.navItem, ...(activeTab === 'dashboard' ? styles.navActive : {})}} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</div>
           <div style={{...styles.navItem, ...(activeTab === 'tasks' ? styles.navActive : {})}} onClick={() => setActiveTab('tasks')}>✅ My Tasks</div>
-          <div style={{...styles.navItem, ...(activeTab === 'projects' ? styles.navActive : {})}} onClick={() => setActiveTab('projects')}>📂 My Projects</div>
           <div style={{...styles.navItem, ...(activeTab === 'attendance' ? styles.navActive : {})}} onClick={() => setActiveTab('attendance')}>📅 Attendance</div>
           <div style={{...styles.navItem, ...(activeTab === 'leave' ? styles.navActive : {})}} onClick={() => setActiveTab('leave')}>📄 Apply Leave</div>
         </nav>
-        <div style={{position: 'relative', marginTop: 'auto', marginBottom: '10px'}} onClick={() => setShowSettingsMenu(!showSettingsMenu)}>
+        
+        <div id="praphool_sidebar_settings_trigger" style={{position: 'relative', marginTop: 'auto', marginBottom: '10px'}} onClick={triggerSidebarSettingsMenu}>
           <div style={styles.settingsTrigger}>⚙️ Setting <span style={{marginLeft: 'auto'}}>{showSettingsMenu ? '▼' : '▲'}</span></div>
           {showSettingsMenu && (
             <div style={styles.dropdownWhite}><div style={styles.dropdownItem} onClick={handleLogout}>Settings → Logout</div></div>
@@ -280,11 +428,12 @@ const Dashboard = () => {
         <div style={styles.signOutPos} onClick={handleLogout}><div style={{...styles.navItem, color: '#ef4444'}}>↪ Sign Out</div></div>
       </div>
 
+      {/* Main Wrapper Container */}
       <div style={styles.mainWrapper}>
         <header style={styles.topHeader}>
           <div style={styles.headerRight}>
-             <div style={{position: 'relative'}}>
-              <span style={{fontSize: '22px', cursor: 'pointer', display: 'inline-block', padding: '5px'}} onClick={() => { setShowNotificationDropdown(!showNotificationDropdown); setShowHeaderDropdown(false); }}>🔔</span>
+             <div id="praphool-notification-trigger" style={{position: 'relative'}}>
+              <span style={{fontSize: '22px', cursor: 'pointer', display: 'inline-block', padding: '5px'} } onClick={triggerNotificationDropdown}>🔔</span>
               {showNotificationDropdown && (
                 <div style={styles.notificationWhite}>
                   <div style={styles.notificationHeaderFlex}><span style={{fontWeight: 'bold'}}>Notifications</span><span>0 alerts</span></div>
@@ -292,10 +441,16 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
-            <div style={{position: 'relative'}}>
-              <div style={{...styles.headerUser, cursor: 'pointer'}} onClick={() => { setShowHeaderDropdown(!showHeaderDropdown); setShowNotificationDropdown(false); }}>
-                <div style={styles.avatarSmall}>{userData.username ? userData.username.charAt(0).toUpperCase() : 'P'}</div>
-                <span style={{fontSize: '18px'}}>{userData.fullName || userData.username} ⌵</span>
+            
+            <div id="praphool-header-avatar" style={{position: 'relative'}}>
+              <div style={styles.professionalAvatarWrapper} onClick={triggerHeaderDropdown}>
+                <div style={styles.avatarSmallProfessional}>
+                  {userData.username ? userData.username.charAt(0).toUpperCase() : 'P'}
+                </div>
+                <span style={styles.professionalEmailText}>
+                  {userData.username || 'tasker@gmail.com'}
+                </span>
+                <span style={styles.dropdownArrowSymbol}>▼</span>
               </div>
               {showHeaderDropdown && (
                 <div style={styles.headerDropdownWhite}>
@@ -310,20 +465,35 @@ const Dashboard = () => {
           {activeTab === 'dashboard' && (
             <>
               <h1 style={styles.pageTitle}>My Dashboard</h1>
-              <p style={styles.subText}>Welcome back, {userData.fullName || userData.username}</p>
+              <p style={styles.subText}>Welcome back, {userData.username}</p>
               
               <div style={styles.timerCard}>
                 <div style={styles.timerGrid}>
-                  <div style={styles.timerDisplay}><div style={styles.timerLabel}>READY TO START</div><div style={styles.timerValue}>{formatTime(isPunchedIn ? (accumulatedSessionTime + seconds) : accumulatedSessionTime)}</div></div>
+                  <div style={styles.timerDisplay}>
+                    <div style={styles.timerLabel}>{isShiftOver ? '❌ SHIFT LOCKOUT ACTIVE' : 'READY TO START'}</div>
+                    <div style={styles.timerValue}>{formatTime(isPunchedIn ? (accumulatedSessionTime + seconds) : accumulatedSessionTime)}</div>
+                  </div>
                   <div style={styles.punchInfoBox}><span style={{color: '#00e676'}}>→] SIGN IN</span><div style={styles.punchTimeText}>{punchInTime}</div></div>
                   <div style={styles.punchInfoBox}><span style={{color: '#ef4444'}}>[→ SIGN OUT</span><div style={styles.punchTimeText}>{punchOutTime}</div></div>
                   <div style={styles.punchAction}>
-                    <button onClick={handlePunchToggle} disabled={isShiftOver} style={{...styles.punchBtn, background: isShiftOver ? '#333' : (isPunchedIn ? '#ef4444' : '#00e676')}}>{isPunchedIn ? '⏹ SIGN Out' : '▶ SIGN In'}</button>
+                    <button 
+                      onClick={handlePunchToggle} 
+                      disabled={isShiftOver} 
+                      style={{
+                        ...styles.punchBtn, 
+                        background: isShiftOver ? '#2d1a1d' : (isPunchedIn ? '#ef4444' : '#00e676'),
+                        color: isShiftOver ? '#64748b' : '#fff',
+                        cursor: isShiftOver ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {isShiftOver ? '🔒 Locked till 8AM' : (isPunchedIn ? '⏹ SIGN Out' : '▶ SIGN In')}
+                    </button>
                   </div>
                 </div>
               </div>
 
-              <div style={styles.statsRow}>
+              <div style={styles.stylesStatsMetricsRowGrid}>
+                <div style={styles.statCard}><div style={styles.statLabel}>TASKS IN PROGRESS</div><div style={styles.statValue}>{tasks.filter(t => t.status !== 'Completed').length}</div></div>
                 <div style={styles.statCard}><div style={styles.statLabel}>TASKS COMPLETED</div><div style={styles.statValue}>{tasks.filter(t => t.status === 'Completed').length}</div></div>
                 <div style={styles.statCard}><div style={styles.statLabel}>TOTAL TIME</div><div style={styles.statValue}>{Math.floor((isPunchedIn ? (accumulatedSessionTime + seconds) : accumulatedSessionTime) / 60)}m</div></div>
                 <div style={styles.statCard}><div style={styles.statLabel}>SIGN COUNT</div><div style={styles.statValue}>{punchCount}/2</div></div>
@@ -335,18 +505,18 @@ const Dashboard = () => {
                   <form onSubmit={handleCreateTask} style={styles.formStack}>
                     <input style={styles.inputFieldFixed} placeholder="Task Title *" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} required />
                     
-                    {/* ✅ FIXED SELECT DROPDOWN BLOCK */}
-<select 
-  style={styles.inputFieldFixed} 
-  value={newTask.project_id} 
-  onChange={e => setNewTask({...newTask, project_id: e.target.value ? parseInt(e.target.value) : ''})} 
-  required
->
-  <option value="" style={{color:'#000'}}>Select Project *</option>
-  {projects.map(p => (
-    <option key={p.id} value={parseInt(p.id)} style={{color:'#000'}}>{p.name}</option>
-  ))}
-</select>
+                    {/* ✅ UPDATED DROPDOWN AND SELECT ELEMENT WITH PROFESIONAL STYLING */}
+                    <select 
+                      style={styles.dropdownInputFieldStyle} 
+                      value={newTask.project_id} 
+                      onChange={e => setNewTask({...newTask, project_id: e.target.value})} 
+                      required
+                    >
+                      <option value="" style={styles.dropdownOptionStyle}>Select Project *</option>
+                      {projects.map(p => (
+                        <option key={p.id} value={p.id} style={styles.dropdownOptionStyle}>{p.name}</option>
+                      ))}
+                    </select>
                     
                     <textarea style={{...styles.inputFieldFixed, height: '100px', resize: 'none'}} placeholder="Task Description" value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})} />
                     
@@ -367,31 +537,31 @@ const Dashboard = () => {
                       </button>
 
                       <button 
-  type="button"
-  onClick={handleSubmitTask}
-  style={{
-    ...styles.createBtn,
-    flex: 1,
-    background: (isButtonDisabled || !currentCreatedTaskId) ? '#1e293b' : '#00e676',
-    color: (isButtonDisabled || !currentCreatedTaskId) ? '#64748b' : 'black',
-    cursor: (isButtonDisabled || !currentCreatedTaskId) ? 'not-allowed' : 'pointer',
-    border: '1px solid #2d3748'
-  }} 
-  disabled={isButtonDisabled || !currentCreatedTaskId} // ✅ Button stays locked until 2 min timer turns 0
->
-  Submit Task
-</button>
+                        type="button"
+                        onClick={handleSubmitTask}
+                        style={{
+                          ...styles.createBtn,
+                          flex: 1,
+                          background: isButtonDisabled ? '#1e293b' : '#00e676',
+                          color: isButtonDisabled ? '#64748b' : 'black',
+                          cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
+                          border: '1px solid #2d3748'
+                        }} 
+                        disabled={isButtonDisabled}
+                      >
+                        Submit Task
+                      </button>
                     </div>
                   </form>
                 </div>
 
                 <div style={styles.recentTasksCard}>
-                  <h3 style={{marginBottom: '20px', fontSize: '20px', color: '#fff'}}>Recent Tasks</h3>
+                  <h3 style={{marginBottom: '20px', fontSize: '20px', color: '#fff'}}>Recent Tasks (24h Activity)</h3>
                   <div style={{ ...styles.taskList, maxHeight: '350px', overflowY: 'auto' }}>
-                    {tasks.length === 0 ? (
-                      <p style={{color: '#888', fontSize: '14px'}}>No tasks available</p>
+                    {recentTasksFiltered.length === 0 ? (
+                      <p style={{color: '#888', fontSize: '14px'}}>No task updates inside the last 24 hours.</p>
                     ) : (
-                      tasks.map(task => (
+                      recentTasksFiltered.map(task => (
                         <div key={task.id} style={styles.taskItem}>
                           <div><div style={{fontWeight: 'bold', color: '#fff'}}>{task.title}</div><div style={{fontSize: '14px', color: '#888'}}>{task.description || 'No description'}</div></div>
                           <div style={{...styles.statusBadge, background: task.status === 'Completed' ? '#00e676' : '#f59e0b'}}>
@@ -408,27 +578,101 @@ const Dashboard = () => {
 
           {activeTab === 'tasks' && (
             <div style={styles.viewPanel}>
-              <h1 style={styles.pageTitle}>All Tasks</h1>
-              {uniqueProjectIds.map(projId => {
-                const filtered = tasks.filter(t => parseInt(t.project_id) === parseInt(projId));
-                return (
-                  <div key={projId} style={styles.customTableWrapper}>
-                    <div style={styles.projectHeaderBanner}>📁 {getProjectNameById(projId)} ({filtered.length})</div>
-                    <table style={styles.customTableStructure}>
-                      <thead><tr><th style={styles.thCell}>TASK ID</th><th style={styles.thCell}>DATE</th><th style={styles.thCell}>STATUS</th></tr></thead>
-                      <tbody>
-                        {filtered.map(t => (
-                          <tr key={t.id} style={styles.trRowTable}>
-                            <td style={styles.tdCell}>{891360 + t.id}</td>
-                            <td style={styles.tdCell}>{new Date().toLocaleDateString()}</td>
-                            <td style={styles.tdCell}><span style={{...styles.tableStatusBadge, color: t.status === 'Completed' ? '#00e676' : '#f59e0b'}}>{t.status}</span></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })}
+              <h1 style={styles.pageTitle}>All Tracked Tasks History</h1>
+              <p style={styles.subText}>Comprehensive date-stratified and project-nested chronological logging clusters</p>
+              
+              {orderedUniqueDates.length === 0 ? (
+                <p style={{color: '#888', marginTop: '20px'}}>No tasks recorded inside the database architecture logs yet.</p>
+              ) : (
+                orderedUniqueDates.map(dateStr => {
+                  const dateTasks = tasksByDate[dateStr];
+                  const isDateOpen = !!expandedDates[dateStr];
+                  const innerProjectIds = [...new Set(dateTasks.map(t => parseInt(t.project_id)))];
+
+                  return (
+                    <div key={dateStr} style={styles.chronologicalWrapperDateCard}>
+                      <div style={styles.chronologicalHeaderTriggerRow} onClick={() => toggleDateAccordion(dateStr)}>
+                        <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
+                          <span style={{
+                            transform: isDateOpen ? 'rotate(90deg)' : 'rotate(0deg)', 
+                            transition:'0.2s', display:'inline-block', fontSize:'14px', color:'#00bcd4', fontWeight:'bold'
+                          }}>▶</span>
+                          <span style={{fontWeight:'700', fontSize:'18px', color: '#fff'}}>📅 {getDateLabel(dateStr)}</span>
+                          <span style={styles.totalTasksCountBadgeMini}>{dateTasks.length} Tasks ({dateStr})</span>
+                        </div>
+                        <div style={{color:'#64748b', fontSize:'13px', fontWeight:'500'}}>
+                          Completed: <span style={{color:'#00e676'}}>{dateTasks.filter(t=>t.status==='Completed').length}</span> | In Progress: <span style={{color:'#f59e0b'}}>{dateTasks.filter(t=>t.status!=='Completed').length}</span>
+                        </div>
+                      </div>
+
+                      {isDateOpen && (
+                        <div style={styles.chronologicalInnerContentBox}>
+                          {innerProjectIds.map(pId => {
+                            const projectInnerTasks = dateTasks.filter(t => parseInt(t.project_id) === pId);
+                            const combinedProjKey = `${dateStr}_${pId}`;
+                            const isProjectOpen = !!expandedInnerProjects[combinedProjKey];
+
+                            return (
+                              <div key={pId} style={styles.innerProjectSubWrapperBlock}>
+                                <div 
+                                  style={{...styles.innerProjectSectionBannerTitle, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}
+                                  onClick={() => toggleProjectAccordion(dateStr, pId)}
+                                >
+                                  <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                    <span style={{
+                                      transform: isProjectOpen ? 'rotate(90deg)' : 'rotate(0deg)', 
+                                      transition: '0.2s', display: 'inline-block', color: '#00bcd4', fontWeight: 'bold', fontSize: '11px'
+                                    }}>▶</span>
+                                    <span>📁 {getProjectNameById(pId)}</span>
+                                  </div>
+                                  <span style={{background: 'rgba(0,188,212,0.15)', color: '#00bcd4', padding: '1px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 'bold'}}>
+                                    {projectInnerTasks.length} Entries
+                                  </span>
+                                </div>
+
+                                {isProjectOpen && (
+                                  <table style={styles.customTableStructure}>
+                                    <thead>
+                                      <tr>
+                                        <th style={styles.thCell}>TASK ID</th>
+                                        <th style={styles.thCell}>COMPLETION / CREATED DATE</th>
+                                        <th style={styles.thCell}>TASK SUMMARY DESIGNATION</th>
+                                        <th style={styles.thCell}>AUDITING STATUS STATE</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {projectInnerTasks.map(t => (
+                                        <tr key={t.id} style={styles.trRowTable}>
+                                          <td style={{...styles.tdCell, color: '#8a94a6', fontWeight:'600', width:'15%'}}>#{t.id.toString().slice(-6)}</td>
+                                          <td style={{...styles.tdCell, color: '#daffde', fontWeight:'500', width:'25%'}}>
+                                            {t.created_date ? t.created_date : dateStr}
+                                          </td>
+                                          <td style={styles.tdCell}>
+                                            <div style={{fontWeight:'bold', color:'#fff'}}>{t.title}</div>
+                                            <small style={{color:'#64748b'}}>{t.description || 'No meta overview description logging'}</small>
+                                          </td>
+                                          <td style={{...styles.tdCell, width:'20%'}}>
+                                            <span style={{
+                                              ...styles.statusBadge,
+                                              fontSize: '11px', padding: '4px 8px', borderRadius: '6px',
+                                              background: t.status === 'Completed' ? 'rgba(0, 230, 118, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+                                              color: t.status === 'Completed' ? '#00e676' : '#f59e0b'
+                                            }}>{t.status?.toUpperCase()}</span>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
 
@@ -514,73 +758,77 @@ const Dashboard = () => {
 };
 
 const styles = {
-    appContainer: { display: 'flex', height: '100vh', background: '#000', color: 'white', fontFamily: 'sans-serif', overflow: 'hidden' },
-    sidebar: { width: '280px', background: '#0a0a0a', display: 'flex', flexDirection: 'column', padding: '25px', borderRight: '1px solid #1a1a1a' },
+    appContainer: { display: 'flex', height: '100vh', background: '#000000', color: 'white', fontFamily: 'sans-serif', overflow: 'hidden' },
+    sidebar: { width: '280px', background: '#000000', display: 'flex', flexDirection: 'column', padding: '25px', borderRight: '1px solid #111111' },
     logoSection: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '50px' },
     logoIcon: { background: '#00bcd4', padding: '10px', borderRadius: '10px', fontWeight: 'bold', color: 'black' },
     logoText: { fontSize: '24px', fontWeight: 'bold' },
     userProfileSide: { display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '40px' },
-    avatarLarge: { width: '60px', height: '60px', borderRadius: '50%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00bcd4', fontWeight: 'bold' },
-    userNameSide: { fontWeight: '600', fontSize: '18px' },
-    userRoleBadge: { background: '#1e293b', fontSize: '12px', padding: '4px 10px', borderRadius: '4px', color: '#888' },
+    avatarLarge: { width: '60px', height: '60px', borderRadius: '50%', background: '#0d0d0d', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00bcd4', fontWeight: 'bold' },
+    userNameSide: { fontWeight: '600', fontSize: '14px', maxWidth:'160px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' },
+    userRoleBadge: { background: '#eb9b00', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', color: 'black', fontWeight:'bold', marginTop:'4px', display:'inline-block' },
     navLinks: { flex: 1 },
-    navItem: { padding: '15px 20px', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer', marginBottom: '10px', transition: '0.2s', fontSize: '17px' },
-    navActive: { background: 'rgba(0, 188, 212, 0.1)', color: '#00bcd4' },
-    signOutPos: { borderTop: '1px solid #1e293b', paddingTop: '15px' },
-    dropdownWhite: { position: 'absolute', bottom: '60px', left: '0', width: '100%', background: '#FFFFFF', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0,0,0,0.5)', zIndex: 1000, color:'#333' },
-    headerDropdownWhite: { position: 'absolute', top: '55px', right: '0', width: '160px', background: '#FFFFFF', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0,0,0,0.5)', zIndex: 1000, padding: '4px 0' },
-    notificationWhite: { position: 'absolute', top: '40px', right: '-20px', width: '320px', background: '#FFFFFF', borderRadius: '16px', boxShadow: '0px 12px 30px rgba(0,0,0,0.6)', zIndex: 2000, overflow: 'hidden', color: '#333' },
-    dropdownItem: { padding: '12px 20px', color: '#333', cursor: 'pointer', borderBottom: '1px solid #eee' },
+    navItem: { padding: '15px 20px', borderRadius: '8px', color: '#888888', cursor: 'pointer', marginBottom: '10px', transition: '0.2s', fontSize: '17px' },
+    navActive: { background: 'rgba(0, 188, 212, 0.08)', color: '#00bcd4', fontWeight: '600' },
+    signOutPos: { borderTop: '1px solid #111111', paddingTop: '15px' },
+    dropdownWhite: { position: 'absolute', bottom: '60px', left: '0', width: '100%', background: '#0d0d0d', border: '1px solid #1a1a1a', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0,0,0,0.5)', zIndex: 1000, color:'#fff' },
+    headerDropdownWhite: { position: 'absolute', top: '75px', right: '0', width: '180px', background: '#0a0a0a', border: '1px solid #1a1a1a', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0,0,0,0.5)', zIndex: 1000, padding: '4px 0' },
+    dropdownItem: { padding: '12px 20px', color: '#fff', cursor: 'pointer', '&:hover': { background: '#111' } },
     headerDropdownItem: { padding: '12px 20px', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer' },
-    notificationHeaderFlex: { display: 'flex', justifyContent: 'space-between', padding: '15px 20px', background: '#F8F9FA', borderBottom: '1px solid #EEE' },
-    notificationBodyEmpty: { padding: '35px 20px', textAlign: 'center', color: '#666' },
-    settingsTrigger: { padding: '15px 20px', background: '#1e293b', borderRadius: '8px', cursor: 'pointer', display: 'flex', fontWeight: 'bold' },
-    mainWrapper: { flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', background: '#000' },
-    topHeader: { height: '80px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '0 50px', borderBottom: '1px solid #1a1a1a' },
+    notificationWhite: { position: 'absolute', top: '45px', right: '-10px', width: '320px', background: '#0d0d0d', borderRadius: '12px', border: '1px solid #1a1a1a', boxShadow: '0px 12px 30px rgba(0,0,0,0.6)', zIndex: 2000, overflow: 'hidden', color: '#fff' },
+    notificationHeaderFlex: { display: 'flex', justifyContent: 'space-between', padding: '12px 18px', background: '#050505', borderBottom: '1px solid #111' },
+    notificationBodyEmpty: { padding: '30px 18px', textAlign: 'center', color: '#666' },
+    settingsTrigger: { padding: '15px 20px', background: '#0d0d0d', borderRadius: '8px', cursor: 'pointer', display: 'flex', fontWeight: 'bold', border: '1px solid #111' },
+    mainWrapper: { flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', background: '#000000' },
+    topHeader: { height: '80px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '0 50px', borderBottom: '1px solid #111111', background: '#000000' },
     headerRight: { display: 'flex', gap: '30px', alignItems: 'center' },
-    headerUser: { display: 'flex', alignItems: 'center', gap: '12px' },
-    avatarSmall: { width: '40px', height: '40px', borderRadius: '50%', background: '#00bcd4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'black', fontWeight: 'bold' },
-    contentArea: { padding: '40px 50px 50px' },
+    professionalAvatarWrapper: { display: 'flex', alignItems: 'center', gap: '10px', background: '#000000', padding: '6px 14px', borderRadius: '30px', border: '1px solid #111111', cursor: 'pointer', transition: '0.2s', '&:hover': { background: '#0d0d0d' } },
+    avatarSmallProfessional: { width: '30px', height: '30px', borderRadius: '50%', background: '#00bcd4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold', fontSize: '13px' },
+    professionalEmailText: { fontSize: '14px', color: '#fff', fontWeight: '500', maxWidth: '170px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+    dropdownArrowSymbol: { color: '#64748b', fontSize: '12px', marginLeft: '2px' },
+    contentArea: { padding: '40px 50px 50px', background: '#000000', minHeight: 'calc(100vh - 80px)' },
     pageTitle: { fontSize: '36px', fontWeight: 'bold', margin: 0 },
     subText: { color: '#64748b', fontSize: '18px', marginBottom: '40px' },
-    timerCard: { background: '#0a0a0a', borderRadius: '20px', padding: '35px', border: '1px solid #1a1a1a', marginBottom: '30px' },
+    timerCard: { background: '#050505', borderRadius: '20px', padding: '35px', border: '1px solid #111111', marginBottom: '30px' },
     timerGrid: { display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 0.8fr 1fr', alignItems: 'center' },
     timerValue: { fontSize: '56px', fontWeight: 'bold' },
     timerLabel: { color: '#8a94a6', fontSize: '14px' },
-    punchInfoBox: { borderLeft: '1px solid #1a1a1a', paddingLeft: '25px' },
-    punchTimeText: { fontSize: '28px', fontWeight: 'bold' },
-    punchBtn: { border: 'none', padding: '15px 35px', borderRadius: '10px', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' },
-    timerFooter: { display: 'flex', gap: '60px', paddingTop: '25px', color:'#888' },
-    statsRow: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '25px', marginBottom: '30px' },
-    statCard: { background: '#0a0a0a', padding: '30px', borderRadius: '20px', border: '1px solid #1a1a1a' },
-    statLabel: { color: '#8a94a6', fontSize: '14px' },
+    punchInfoBox: { borderLeft: '1px solid #111111', paddingLeft: '25px' },
+    punchAction: { display: 'flex', justifyContent: 'flex-end' },
+    punchBtn: { border: 'none', padding: '12px 28px', borderRadius: '8px', color: 'white', fontWeight: 'bold', fontSize: '15px', transition: '0.2s' },
+    stylesStatsMetricsRowGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '25px', marginBottom: '30px' },
+    statCard: { background: '#050505', padding: '30px', borderRadius: '20px', border: '1px solid #111111' },
+    statLabel: { color: '#8a94a6', fontSize: '12px', fontWeight: '600' },
     statValue: { fontSize: '42px', fontWeight: 'bold', marginTop: '12px' },
     bottomGrid: { display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '30px' },
-    taskFormCard: { background: '#0a0a0a', padding: '30px', borderRadius: '20px', border: '1px solid #1a1a1a' },
-    recentTasksCard: { background: '#0a0a0a', padding: '30px', borderRadius: '20px', border: '1px solid #1a1a1a' },
+    taskFormCard: { background: '#050505', padding: '30px', borderRadius: '20px', border: '1px solid #111111' },
+    recentTasksCard: { background: '#050505', padding: '30px', borderRadius: '20px', border: '1px solid #111111' },
     formStack: { display: 'flex', flexDirection: 'column', gap: '15px' },
-    inputFieldFixed: { background: '#151921', border: '1px solid #2d3748', borderRadius: '10px', color: '#fff', padding: '15px', fontSize: '16px', outline:'none' },
+    inputFieldFixed: { background: '#0a0a0a', border: '1px solid #1a1a1a', borderRadius: '10px', color: '#fff', padding: '15px', fontSize: '16px', outline:'none' },
     createBtn: { border: 'none', padding: '15px', borderRadius: '10px', fontWeight: 'bold', color: 'black', fontSize: '16px' },
-    taskItem: { background: '#000', padding: '15px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #1a1a1a', marginBottom: '10px' },
-    statusBadge: { padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', color: 'black' },
-    customTableWrapper: { background: '#0a0a0a', borderRadius: '16px', border: '1px solid #1a1a1a', overflow: 'hidden', marginBottom: '30px' },
-    projectHeaderBanner: { background: '#1e293b', padding: '15px 25px', fontWeight: 'bold' },
+    taskItem: { background: '#000000', padding: '15px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #111111', marginBottom: '10px' },
+    statusBadge: { padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' },
+    customTableWrapper: { background: '#050505', border: '1px solid #111111', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px', marginTop:'15px' },
+    projectHeaderBanner: { background: '#0a0d14', padding: '12px 20px', fontWeight: 'bold', color:'#00bcd4', fontSize:'14px' },
     customTableStructure: { width: '100%', borderCollapse: 'collapse' },
-    thCell: { padding: '15px', background: '#0f172a', color: '#888', textAlign: 'left' },
-    tdCell: { padding: '15px', borderBottom: '1px solid #1a1a1a' },
+    thCell: { padding: '15px', background: '#0a0a0a', color: '#888', textAlign: 'left', borderBottom: '1px solid #111' },
+    tdCell: { padding: '15px', borderBottom: '1px solid #111111' },
+    tableStatusBadge: { fontWeight: 'bold', fontSize: '14px' },
     modalOverlayContext: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10000 },
-    modalContentCard: { background: '#0a0a0a', padding: '30px', borderRadius: '24px', border: '1px solid #1a1a1a', width: '500px' },
-    modalOverlayContext: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10000 },
-    modalContentCard: { background: '#0a0a0a', padding: '30px', borderRadius: '24px', border: '1px solid #1a1a1a', width: '500px' },
-    modalHeaderFlex: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom:'20px' },
-    inputStackField: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '15px' },
-    modalLabelText: { fontSize: '12px', color: '#888', fontWeight:'bold' },
-    inputFieldModal: { background: '#151921', border: '1px solid #2d3748', borderRadius: '8px', color: '#fff', padding: '12px' },
-    modalSubmitBtn: { background: '#00bcd4', color:'black', padding: '12px', borderRadius: '8px', border:'none', fontWeight:'bold', cursor:'pointer' },
-    modalActionRowEnd: { display: 'flex', justifyContent: 'flex-end', gap: '15px' },
+    modalContentCard: { background: '#050505', padding: '30px', borderRadius: '24px', border: '1px solid #111111', width: '500px' },
     applyLeaveTriggerBtn: { background: '#00bcd4', color: 'black', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor:'pointer' },
     headerRowFlex: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom:'20px' },
-    viewPanel: { animation: 'fadeIn 0.25s ease-in-out' }
+    viewPanel: { animation: 'fadeIn 0.25s ease-in-out' },
+    chronologicalWrapperDateCard: { background: '#050505', border: '1px solid #111111', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' },
+    chronologicalHeaderTriggerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 25px', cursor: 'pointer', background: '#080808', transition: '0.2s' },
+    chronologicalInnerContentBox: { background: '#020202', padding: '15px 25px 25px', borderTop: '1px solid #111111', display:'flex', flexDirection:'column', gap:'15px' },
+    totalTasksCountBadgeMini: { background: 'rgba(0, 188, 212, 0.12)', color: '#00bcd4', fontSize: '12px', padding: '3px 10px', borderRadius: '20px', fontWeight: 'bold' },
+    innerProjectSubWrapperBlock: { border: '1px solid #111111', borderRadius: '8px', overflow:'hidden', background: '#050505' },
+    innerProjectSectionBannerTitle: { background: '#0a0d14', padding: '12px 18px', fontWeight: '600', fontSize: '14px', color: '#fff', transition: '0.2s' },
+    
+    // ✅ ADDED DRIVER STYLES FOR THE PROJECT SELECT DROPDOWN OVERRIDES
+    dropdownInputFieldStyle: { background: '#0a0a0a', border: '1px solid #1a1a1a', borderRadius: '10px', color: '#ffffff', padding: '15px', fontSize: '16px', outline: 'none', width: '100%', cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none' },
+    dropdownOptionStyle: { background: '#0d0d0d', color: '#ffffff', padding: '15px', fontSize: '16px' }
 };
 
 export default Dashboard;

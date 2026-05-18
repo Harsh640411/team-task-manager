@@ -62,23 +62,25 @@ router.post('/login', async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Server error" }); }
 });
 
-// 1. 📝 TASKER ACTION: Apply for a new leave request (Fixed Undefined Username Issue)
+// 1. 📝 TASKER ACTION: Apply for a new leave request (Fixed Dynamic Overwrite Bug Flawlessly)
 router.post('/leaves/apply', verifyToken, async (req, res) => {
     const { fromDate, toDate, reason } = req.body;
     const userId = req.user.id; // Safe extraction from middleware token payload
 
     try {
-        // ✅ Token ki jagah direct DB se exact user email nikal rahe hain taaki save fail na ho
-        const [users] = await db.execute('SELECT username FROM users WHERE id = ?', [userId]);
-        if (users.length === 0) return res.status(404).json({ error: "User not found" });
+        // ✅ Direct DB query to fetch logged-in user's authentic username (email) and profile name
+        const [users] = await db.execute('SELECT username, fullName FROM users WHERE id = ?', [userId]);
+        if (users.length === 0) return res.status(404).json({ error: "User profile not found in system storage" });
         
-        const actualUsername = users[0].username;
+        const actualUserEmail = users[0].username; // yields dynamic praphool@gmail.com
+        const actualFullName = users[0].fullName || 'Tasker Member';
 
+        // ✅ FIXED SCHEMA INSERT: Mapping dynamic user pools to prevent strict default email fallback corruption
         await db.execute(
-            'INSERT INTO leaves (username, fromDate, toDate, reason, status) VALUES (?, ?, ?, ?, ?)',
-            [actualUsername, fromDate, toDate, reason, 'Pending']
+            'INSERT INTO leaves (user_id, name, email, username, fromDate, toDate, reason, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [userId, actualFullName, actualUserEmail, actualUserEmail, fromDate, toDate, reason, 'Pending']
         );
-        res.status(201).json({ message: "Leave applied successfully" });
+        res.status(201).json({ message: "Leave applied successfully under your active session profile! 🚀" });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -91,9 +93,10 @@ router.get('/leaves/my-leaves', verifyToken, async (req, res) => {
         const [users] = await db.execute('SELECT username FROM users WHERE id = ?', [userId]);
         if (users.length === 0) return res.status(404).json({ error: "User not found" });
 
+        // Checked to seamlessly poll via both custom fields to prevent database query loss
         const [myLeaves] = await db.execute(
-            'SELECT * FROM leaves WHERE username = ? ORDER BY id DESC',
-            [users[0].username]
+            'SELECT * FROM leaves WHERE username = ? OR user_id = ? ORDER BY id DESC',
+            [users[0].username, userId]
         );
         res.json(myLeaves);
     } catch (err) {

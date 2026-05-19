@@ -17,29 +17,35 @@ const Login = () => {
         password: password
       });
 
-      // ✅ Token save kiya
+      // ✅ FIXED: Token mapped to both scopes to strictly isolate tab contexts on hard/soft refreshes
       localStorage.setItem('token', res.data.token);
+      sessionStorage.setItem('token', res.data.token);
 
-      // ✅ Ab seedhe backend se user details fetch karenge role janne ke liye
+      // Ab backend se user details fetch karenge role janne ke liye
       const userRes = await axios.get('https://team-task-manager-production-fb15.up.railway.app/api/auth/me', {
         headers: { Authorization: `Bearer ${res.data.token}` }
       });
 
       const userRole = userRes.data?.role ? userRes.data.role.toLowerCase() : 'tasker';
+      const actualUsername = userRes.data?.username || email;
       
-      // ✅ Role ko bhi localStorage mein save kar lo taaki App.jsx turant read kar sake
+      // ✅ FIXED: Save identity payload inside sessionStorage to completely freeze cross-tab leakage
       localStorage.setItem('userRole', userRole);
+      localStorage.setItem('username', actualUsername);
+      
+      sessionStorage.setItem('userRole', userRole);
+      sessionStorage.setItem('username', actualUsername);
 
       alert('Logged In successfully! 🚀');
 
-      // ✅ Proper redirection matching roles
+      // Proper redirection matching roles
       if (userRole === 'admin') {
         navigate('/admin-dashboard');
       } else {
         navigate('/dashboard');
       }
 
-      // Force a soft page refresh to update App.jsx state accurately
+      // Force a soft page refresh to lock state accurately inside specific windows boundaries
       window.location.reload();
 
     } catch (error) {

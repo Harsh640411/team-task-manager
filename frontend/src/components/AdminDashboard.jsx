@@ -247,7 +247,7 @@ const AdminDashboard = () => {
             </>
           )}
 
-          {/* ✅ TAB: TASK REVIEW PANEL WITH PATTERN CLUSTERING STRATEGY */}
+          {/* ✅ TAB: TASK REVIEW PANEL WITH ACCURATE MOUNT FILTER (NO DUPLICATION) */}
           {activeTab === 'reviews' && (
             <div style={styles.viewPanel}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'25px'}}>
@@ -259,18 +259,25 @@ const AdminDashboard = () => {
               </div>
 
               <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
-                {projectsList.map((proj, index) => {
+                {projectsList.map((proj) => {
                   
+                  // 🔥 REFINED STRICT PATTERN MATCHING FILTER
                   const projectTasks = allTasks.filter(t => {
                     const taskTitleRaw = String(t.title || '').toLowerCase();
                     const currentProjNameRaw = String(proj.name || '').toLowerCase();
-                    const firstWord = currentProjNameRaw.split(' ')[0]; // 'geo', 'face', 'portfolio'
                     
-                    const hasBracketsMatch = taskTitleRaw.includes(`[${currentProjNameRaw}]`) || taskTitleRaw.includes(firstWord);
-                    const hasIdMatch = t.project_id && (String(t.project_id) === String(proj.id));
-                    const fallbackFirstRow = index === 0 && (!t.project_id || String(t.project_id) === '1');
+                    // Exact Bracket Matching Strategy (e.g., [geo sentiment analyzer])
+                    const hasExactBracketMatch = taskTitleRaw.includes(`[${currentProjNameRaw}]`);
+                    
+                    // Sub-word fallback verification (Taki agar space trims ho tab bhi accurate filter ho)
+                    const projectSlug = currentProjNameRaw.split(' ')[0]; // 'geo', 'face', 'portfolio'
+                    const hasKeywordMatch = taskTitleRaw.startsWith(`[${projectSlug}`) || taskTitleRaw.includes(`[${projectSlug}`);
 
-                    return hasBracketsMatch || hasIdMatch || fallbackFirstRow;
+                    // Strict dynamic ID mapping constraint
+                    const hasExplicitIdMatch = t.project_id && (String(t.project_id) === String(proj.id));
+
+                    // Return target true matching without fallback duplication leaks
+                    return hasExactBracketMatch || hasKeywordMatch || hasExplicitIdMatch;
                   });
 
                   const completedCount = projectTasks.filter(t => String(t.status).toLowerCase() === 'completed').length;
@@ -314,14 +321,14 @@ const AdminDashboard = () => {
                                 </thead>
                                 <tbody>
                                   {projectTasks.map(task => {
-                                    // Extract the metadata nicely for UI
+                                    // Clean text layout strings beautifully
                                     const cleanTitleDisplay = String(task.title || '').replace(/^\[.*?\]\s*/, '').split('(By:')[0].trim();
-                                    const rawUserIdExtract = String(task.title || '').includes('(By:') ? String(task.title).split('(By:')[1].replace(')', '').trim() : 'Tasker';
+                                    const rawUserIdExtract = String(task.title || '').includes('(By:') ? String(task.title).split('(By:')[1].replace(')', '').trim() : '16';
 
                                     return (
                                       <tr key={task.id} className="tr-row-hover" style={styles.trRowTable}>
                                         <td style={{...styles.tdCell, color:'#00f5d4', fontWeight:'600', fontSize:'14px', width: '20%'}}>
-                                          👤 {task.username || `User ID: ${rawUserIdExtract}`}
+                                          {task.username ? `👤 ${task.username}` : `👤 User ID: ${rawUserIdExtract}`}
                                         </td>
                                         <td style={{...styles.tdCell, color:'#525866', fontWeight:'500', fontSize:'14px', width: '12%'}}>
                                           #{task.id ? task.id.toString().slice(-6) : '891362'}

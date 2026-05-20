@@ -290,12 +290,18 @@ const Dashboard = () => {
     const today = new Date().toISOString().split('T')[0];
     const selectedProjId = newTask.project_id ? parseInt(newTask.project_id) : parseInt(projects[0]?.id || 1);
 
+    // ⚡ EXTRA DYNAMIC SYNC LAYER (Bina kuch purana delete kiye):
+    // Ye line 'projects' array se current selected project ka actual string name nikalegi
+    const currentActiveProjectObject = projects.find(p => parseInt(p.id) === parseInt(selectedProjId)) || projects[0];
+    const extractedProjectName = currentActiveProjectObject ? currentActiveProjectObject.name : 'GEO Sentiment Analyzer';
+
     const temporaryId = Date.now();
     const immediateTaskObject = {
       id: temporaryId,
       title: newTask.title,
       description: newTask.description,
       project_id: selectedProjId,
+      project_name: extractedProjectName, // Synchronized safe parameter key injected
       status: 'In Progress',
       timestamp: Date.now(), 
       created_date: today,
@@ -318,6 +324,7 @@ const Dashboard = () => {
         title: immediateTaskObject.title,
         description: immediateTaskObject.description,
         project_id: selectedProjId, 
+        project_name: extractedProjectName, // ✅ Injected to resolve Admin Dashboard empty rows issue dynamically
         status: 'In Progress'
       }, {
         headers: { Authorization: `Bearer ${activeTabToken}` }

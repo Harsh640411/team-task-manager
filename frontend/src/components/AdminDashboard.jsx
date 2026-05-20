@@ -139,37 +139,25 @@ const AdminDashboard = () => {
     }).sort((a, b) => b.completed - a.completed);
   };
 
-  // ✅ ENFORCED DYNAMIC FIX: Strict cross-reference filter to match IDs or emails seamlessly
-  const totalLiveDatabaseEngineers = uniquePlatformUsersList.length;
+  // ✅ DYNAMIC MATH ENGINE: 100% Correct Calculation Without Matrix Collapses
+  const totalLiveDatabaseEngineers = uniquePlatformUsersList.length; // Active Members count (3)
 
+  // Strictly check how many unique bando ki leave approve ho chuki hai
   const activeStaffOnApprovedLeave = uniquePlatformUsersList.filter(user => {
     return leaveRequests.some(l => {
       if (String(l.status).toLowerCase() !== 'approved') return false;
-
+      
       const leaveUser = String(l.username || '').toLowerCase().trim();
       const platformUser = String(user || '').toLowerCase().trim();
+      const leaveHandle = leaveUser.split('@')[0];
 
-      // Email extract loop: Agar email me praphool@gmail.com hai toh 'praphool' string alag karein
-      const leaveHandle = leaveUser.split('@')[0]; 
-
-      // ⚡ METRIC CROSS MATCH: Match via direct name, sub-string, or text parts instantly
-      const directMatch = leaveUser === platformUser;
-      const handleMatch = platformUser.includes(leaveHandle) || leaveHandle.includes(platformUser);
-      
-      // Dynamic fallback: Agar database me tasks ke title pattern me user info chipki ho
-      const taskInjectedMatch = allTasks.some(t => 
-        String(t.title).toLowerCase().includes(`(by: ${leaveUser})`) || 
-        String(t.title).toLowerCase().includes(leaveHandle)
-      );
-
-      return directMatch || handleMatch || taskInjectedMatch;
+      return leaveUser === platformUser || platformUser.includes(leaveHandle) || leaveUser.includes(platformUser);
     });
   }).length;
 
-  // Enforced Dynamic Operational Fallbacks
-  const calculatedOnLeaveCount = leaveRequests.filter(l => String(l.status).toLowerCase() === 'approved').length;
-  const calculatedOfflineCount = Math.min(totalLiveDatabaseEngineers, Math.max(activeStaffOnApprovedLeave, calculatedOnLeaveCount));
-  const calculatedOnlineCount = Math.max(0, totalLiveDatabaseEngineers - calculatedOfflineCount);
+  // Final Output Filters Variables Locked Safely
+  const calculatedOfflineCount = activeStaffOnApprovedLeave; // Jitne approved hain utne 'On Leave' (1)
+  const calculatedOnlineCount = Math.max(0, totalLiveDatabaseEngineers - calculatedOfflineCount); // Baki bache saare 'Online' (2)
 
   const toggleProjectExpand = (projectId) => {
     if (expandedProjectId === projectId) {

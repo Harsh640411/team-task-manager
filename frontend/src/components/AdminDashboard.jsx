@@ -247,7 +247,7 @@ const AdminDashboard = () => {
             </>
           )}
 
-          {/* ✅ TAB: TASK REVIEW PANEL WITH ABSOLUTE ISOLATION (0% LEAKAGE) */}
+         {/* ✅ TAB: TASK REVIEW PANEL WITH STRICT ANTI-LEAKAGE COMPARISON (0% DUPLICATION) */}
           {activeTab === 'reviews' && (
             <div style={styles.viewPanel}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'25px'}}>
@@ -259,21 +259,45 @@ const AdminDashboard = () => {
               </div>
 
               <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
-                {projectsList.map((proj) => {
+                {projectsList.map((proj, index) => {
                   
-                  // 🔥 STRICT ISOLATION FILTER FILTER
+                  // 🔥 ABSOLUTE ID AND SEGREGATION BLOCK
                   const projectTasks = allTasks.filter(t => {
+                    const taskProjectId = parseInt(t.project_id);
+                    const currentProjId = parseInt(proj.id);
                     const taskTitleRaw = String(t.title || '').toLowerCase();
                     const currentProjNameRaw = String(proj.name || '').toLowerCase().trim();
-                    
-                    // 1. Strict Explicit Bracket Wrapping Check (e.g., "[geo sentiment analyzer]")
+
+                    // If database entry IDs match exactly, bind instantly
+                    if (taskProjectId === currentProjId) return true;
+
+                    // String bracket boundary validation check
                     const hasExactBracketMatch = taskTitleRaw.includes(`[${currentProjNameRaw}]`);
+                    if (hasExactBracketMatch) return true;
 
-                    // 2. Strict ID matching fallback context
-                    const hasExplicitIdMatch = t.project_id && (String(t.project_id) === String(proj.id));
+                    // 🛑 GEO SENTIMENT (INDEX 0 / ID 1) LEAKAGE SHIELD:
+                    // Agar task content me 'face' ya 'portfolio' ka word hai, toh use GEO me jaane se block karo!
+                    if (currentProjId === 1 || index === 0) {
+                      const containsFace = taskTitleRaw.includes('face') || taskTitleRaw.includes('attendance');
+                      const containsPortfolio = taskTitleRaw.includes('portfolio') || taskTitleRaw.includes('website');
+                      
+                      if (containsFace || containsPortfolio) return false;
 
-                    // Return true ONLY if exact mapping rules match (Prevents cross-accordion leakage)
-                    return hasExactBracketMatch || hasExplicitIdMatch;
+                      // Agar koi id matched nahi hai aur content clean hai, tabhi geo me fallback hoga
+                      return (!t.project_id || taskProjectId === 1 || t.project_id === '');
+                    }
+
+                    // For Face Recognition Card
+                    if (currentProjId === 2 || taskTitleRaw.includes('face') || taskTitleRaw.includes('attendance')) {
+                      return currentProjNameRaw.includes('face');
+                    }
+
+                    // For Portfolio Website Card
+                    if (currentProjId === 3 || taskTitleRaw.includes('portfolio') || taskTitleRaw.includes('website')) {
+                      return currentProjNameRaw.includes('portfolio');
+                    }
+                    
+                    return false;
                   });
 
                   const completedCount = projectTasks.filter(t => String(t.status).toLowerCase() === 'completed').length;
@@ -317,9 +341,8 @@ const AdminDashboard = () => {
                                 </thead>
                                 <tbody>
                                   {projectTasks.map(task => {
-                                    // Parse out metadata headers perfectly for visual output
                                     const cleanTitleDisplay = String(task.title || '').replace(/^\[.*?\]\s*/, '').split('(By:')[0].trim();
-                                    const rawUserIdExtract = String(task.title || '').includes('(By:') ? String(task.title).split('(By:')[1].replace(')', '').trim() : '16';
+                                    const rawUserIdExtract = String(task.title || '').includes('(By:') ? String(task.title).split('(By:')[1].replace(')', '').trim() : 'User';
 
                                     return (
                                       <tr key={task.id} className="tr-row-hover" style={styles.trRowTable}>
@@ -359,7 +382,6 @@ const AdminDashboard = () => {
               </div>
             </div>
           )}
-
           {/* ✅ TAB: LEAVE MANAGEMENT */}
           {activeTab === 'leaves' && (
             <div className="card-glow-hover" style={styles.taskFormCard}>

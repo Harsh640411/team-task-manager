@@ -683,7 +683,7 @@ const Dashboard = () => {
             </>
           )}
 
-          {/* ✅ TAB: MY TASKS HISTORY WITH STRICT ACCORDION LOCKING FILTER */}
+          {/* ✅ TAB: MY TASKS HISTORY - COMPACT 3-PROJECT FORCE RENDER (NO PROJECT HIDING) */}
           {activeTab === 'tasks' && (
             <div style={styles.viewPanel}>
               <h1 style={styles.pageTitle}>All Tracked Tasks History</h1>
@@ -695,7 +695,13 @@ const Dashboard = () => {
                 orderedUniqueDates.map(dateStr => {
                   const dateTasks = tasksByDate[dateStr];
                   const isDateOpen = !!expandedDates[dateStr];
-                  const innerProjectIds = [...new Set(dateTasks.map(t => parseInt(t.project_id)))];
+
+                  // Safe master dynamic projects array track (Ensures 1, 2, 3 are ALWAYS rendered)
+                  const fallbackMasterProjectsList = projects.length > 0 ? projects : [
+                    { id: 1, name: 'GEO Sentiment Analyzer' },
+                    { id: 2, name: 'Face Recognition Attendance System' },
+                    { id: 3, name: 'Portfolio Website Showcase' }
+                  ];
 
                   return (
                     <div key={dateStr} style={styles.chronologicalWrapperDateCard}>
@@ -715,45 +721,35 @@ const Dashboard = () => {
 
                       {isDateOpen && (
                         <div style={styles.chronologicalInnerContentBox}>
-                          {innerProjectIds.map(pId => {
+                          {fallbackMasterProjectsList.map(pObject => {
+                            const pId = parseInt(pObject.id);
                             
-                            // ✅ TAB: MY TASKS HISTORY - STRICT INTEGER ID LOCK (NO OVERLAP)
-const projectInnerTasks = dateTasks.filter(t => {
-  // Pure dynamic string aur number conversion block
-  const taskProjectId = parseInt(t.project_id);
-  const currentProjectId = parseInt(pId);
+                            // 🔥 ABSOLUTE ANTI-OVERLAP FILTERING LOOP WITH NO SPILLOVER LEAKS
+                            const projectInnerTasks = dateTasks.filter(t => {
+                              const taskTitleLower = String(t.title || '').toLowerCase();
+                              const taskDescLower = String(t.description || '').toLowerCase();
+                              const taskProjectId = parseInt(t.project_id);
 
-  // Fallback pattern check tabhi kaam karega jab dynamic id 100% true match ho
-  if (taskProjectId === currentProjectId) return true;
+                              if (pId === 2) {
+                                return taskTitleLower.includes('face') || taskTitleLower.includes('attendance') || taskDescLower.includes('face') || taskProjectId === 2;
+                              }
 
-  // Agar database me link toota hai toh text strictly compare hoga bina cascading ke
-  const taskTitleLower = String(t.title || '').toLowerCase();
-  const currentProjNameLower = String(getProjectNameById(pId)).toLowerCase().trim();
-  const firstWordSlug = currentProjNameLower.split(' ')[0]; // 'geo', 'face', 'portfolio'
+                              if (pId === 3) {
+                                return taskTitleLower.includes('portfolio') || taskTitleLower.includes('website') || taskDescLower.includes('portfolio') || taskProjectId === 3;
+                              }
 
-  // Catch explicitly if bracket wraps only this exact single module header text
-  const hasStrictBracket = taskTitleLower.includes(`[${currentProjNameLower}]`);
-  
-  if (hasStrictBracket) return true;
+                              if (pId === 1) {
+                                const isFace = taskTitleLower.includes('face') || taskTitleLower.includes('attendance') || taskDescLower.includes('face');
+                                const isPortfolio = taskTitleLower.includes('portfolio') || taskTitleLower.includes('website') || taskDescLower.includes('portfolio');
+                                if (isFace || isPortfolio || taskProjectId === 2 || taskProjectId === 3) return false;
+                                return true;
+                              }
 
-  // Stop leakage: Agar task me doosre project ka naam hai toh use pehle container me mat daalo
-  if (currentProjectId === 1) {
-    const hasFaceWord = taskTitleLower.includes('face') || taskTitleLower.includes('attendance');
-    const hasPortfolioWord = taskTitleLower.includes('portfolio') || taskTitleLower.includes('website');
-    if (hasFaceWord || hasPortfolioWord) return false;
-    
-    // Agar project_id empty hai ya default 1 hai aur usme koi doosra keyword nahi hai tabhi geo me jayega
-    return (!t.project_id || taskProjectId === 1 || t.project_id === '');
-  }
-
-  return false;
-});
+                              return false;
+                            });
 
                             const combinedProjKey = `${dateStr}_${pId}`;
                             const isProjectOpen = !!expandedInnerProjects[combinedProjKey];
-
-                            // Safe check if any duplicate entries leaked out empty list
-                            if (projectInnerTasks.length === 0) return null;
 
                             return (
                               <div key={pId} style={styles.innerProjectSubWrapperBlock}>
@@ -767,51 +763,55 @@ const projectInnerTasks = dateTasks.filter(t => {
                                       transform: isProjectOpen ? 'rotate(90deg)' : 'rotate(0deg)', 
                                       transition: '0.2s', display: 'inline-block', color: '#525866', fontSize: '10px'
                                     }}>▶</span>
-                                    <span>📁 {getProjectNameById(pId)}</span>
+                                    <span>📁 {pObject.name}</span>
                                   </div>
-                                  <span style={{background: 'rgba(157, 78, 221, 0.08)', color: '#9d4edd', padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '500'}}>
+                                  <span style={{
+                                    background: projectInnerTasks.length > 0 ? 'rgba(157, 78, 221, 0.08)' : 'rgba(255,255,255,0.02)', 
+                                    color: projectInnerTasks.length > 0 ? '#9d4edd' : '#525866', 
+                                    padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '500'
+                                  }}>
                                     {projectInnerTasks.length} Entries
                                   </span>
                                 </div>
 
                                 {isProjectOpen && (
                                   <div style={{overflowX: 'auto'}}>
-                                    <table style={styles.customTableStructure}>
-                                      <thead>
-                                        <tr>
-                                          <th style={styles.thCell}>TASK ID</th>
-                                          <th style={styles.thCell}>DATE</th>
-                                          <th style={styles.thCell}>TASK SUMMARY</th>
-                                          <th style={styles.thCell}>STATUS</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {projectInnerTasks.map(t => {
-                                          const rowCleanTitle = String(t.title || '').replace(/^\[.*?\]\s*/, '').split('(By:')[0].trim();
-                                          return (
-                                            <tr key={t.id} className="tr-row-hover" style={styles.trRowTable}>
-                                              <td style={{...styles.tdCell, color: '#525866', fontWeight:'500', width:'15%', fontSize: '14px'}}>#{t.id ? t.id.toString().slice(-6) : '891231'}</td>
-                                              <td style={{...styles.tdCell, color: '#7e869c', width:'20%', fontSize: '14px'}}>
-                                                {t.created_date ? t.created_date : dateStr}
-                                              </td>
-                                              <td style={styles.tdCell}>
-                                                <div style={{fontWeight:'500', color:'#f2f4f8', fontSize: '15px'}}>{rowCleanTitle}</div>
-                                                <div style={{color:'#7e869c', fontSize: '13px', marginTop: '3px'}}>{t.description || 'No description provided.'}</div>
-                                              </td>
-                                              <td style={{...styles.tdCell, width:'15%'}}>
-                                                <span style={{
-                                                  ...styles.statusBadge,
-                                                  fontSize: '11px', padding: '3px 10px',
-                                                  background: t.status === 'Completed' ? 'rgba(0, 245, 212, 0.06)' : 'rgba(255, 183, 3, 0.06)',
-                                                  color: t.status === 'Completed' ? '#00f5d4' : '#ffb703',
-                                                  border: `1px solid ${t.status === 'Completed' ? 'rgba(0, 245, 212, 0.12)' : 'rgba(255, 183, 3, 0.12)'}`
-                                                }}>{t.status?.toUpperCase()}</span>
-                                              </td>
-                                            </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
+                                    {projectInnerTasks.length === 0 ? (
+                                      <p style={{color: '#525866', fontSize: '14px', textAlign: 'center', padding: '20px 0', background: '#14161d', margin: 0}}>No tasks recorded for this project on this date.</p>
+                                    ) : (
+                                      <table style={styles.customTableStructure}>
+                                        <thead>
+                                          <tr>
+                                            <th style={styles.thCell}>TASK ID</th>
+                                            <th style={styles.thCell}>TASK SUMMARY</th>
+                                            <th style={styles.thCell}>STATUS</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {projectInnerTasks.map(t => {
+                                            const rowCleanTitle = String(t.title || '').replace(/^\[.*?\]\s*/, '').split('(By:')[0].trim();
+                                            return (
+                                              <tr key={t.id} className="tr-row-hover" style={styles.trRowTable}>
+                                                <td style={{...styles.tdCell, color: '#525866', fontWeight:'500', width:'15%', fontSize: '14px'}}>#{t.id ? t.id.toString().slice(-6) : 'Auto'}</td>
+                                                <td style={styles.tdCell}>
+                                                  <div style={{fontWeight:'500', color:'#f2f4f8', fontSize: '15px'}}>{rowCleanTitle}</div>
+                                                  <div style={{color:'#7e869c', fontSize: '13px', marginTop: '3px'}}>{t.description || 'No description provided.'}</div>
+                                                </td>
+                                                <td style={{...styles.tdCell, width:'15%'}}>
+                                                  <span style={{
+                                                    ...styles.statusBadge,
+                                                    fontSize: '11px', padding: '3px 10px',
+                                                    background: t.status === 'Completed' ? 'rgba(0, 245, 212, 0.06)' : 'rgba(255, 183, 3, 0.06)',
+                                                    color: t.status === 'Completed' ? '#00f5d4' : '#ffb703',
+                                                    border: `1px solid ${t.status === 'Completed' ? 'rgba(0, 245, 212, 0.12)' : 'rgba(255, 183, 3, 0.12)'}`
+                                                  }}>{t.status?.toUpperCase()}</span>
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    )}
                                   </div>
                                 )}
                               </div>

@@ -247,7 +247,7 @@ const AdminDashboard = () => {
             </>
           )}
 
-          {/* ✅ TAB: TASK REVIEW PANEL WITH HIGH-SURVIVAL TEXT REFRACTORING */}
+          {/* ✅ TAB: TASK REVIEW PANEL WITH PATTERN CLUSTERING STRATEGY */}
           {activeTab === 'reviews' && (
             <div style={styles.viewPanel}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'25px'}}>
@@ -261,18 +261,13 @@ const AdminDashboard = () => {
               <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
                 {projectsList.map((proj, index) => {
                   
-                  // Dynamic High-Accuracy Filter Loop
                   const projectTasks = allTasks.filter(t => {
                     const taskTitleRaw = String(t.title || '').toLowerCase();
                     const currentProjNameRaw = String(proj.name || '').toLowerCase();
-                    
                     const firstWord = currentProjNameRaw.split(' ')[0]; // 'geo', 'face', 'portfolio'
                     
-                    // Match condition by explicit brackets header OR database IDs fallback
                     const hasBracketsMatch = taskTitleRaw.includes(`[${currentProjNameRaw}]`) || taskTitleRaw.includes(firstWord);
                     const hasIdMatch = t.project_id && (String(t.project_id) === String(proj.id));
-                    
-                    // Agar purana task bina bracket ke save hua hai aur index matching first row hai
                     const fallbackFirstRow = index === 0 && (!t.project_id || String(t.project_id) === '1');
 
                     return hasBracketsMatch || hasIdMatch || fallbackFirstRow;
@@ -319,13 +314,14 @@ const AdminDashboard = () => {
                                 </thead>
                                 <tbody>
                                   {projectTasks.map(task => {
-                                    // Title string cleanup loop to hide brackets on Admin Table UI cleanly
-                                    const cleanTitleDisplay = String(task.title || '').replace(/^\[.*?\]\s*/, '');
+                                    // Extract the metadata nicely for UI
+                                    const cleanTitleDisplay = String(task.title || '').replace(/^\[.*?\]\s*/, '').split('(By:')[0].trim();
+                                    const rawUserIdExtract = String(task.title || '').includes('(By:') ? String(task.title).split('(By:')[1].replace(')', '').trim() : 'Tasker';
 
                                     return (
                                       <tr key={task.id} className="tr-row-hover" style={styles.trRowTable}>
                                         <td style={{...styles.tdCell, color:'#00f5d4', fontWeight:'600', fontSize:'14px', width: '20%'}}>
-                                          👤 {task.username || 'global_tasker'}
+                                          👤 {task.username || `User ID: ${rawUserIdExtract}`}
                                         </td>
                                         <td style={{...styles.tdCell, color:'#525866', fontWeight:'500', fontSize:'14px', width: '12%'}}>
                                           #{task.id ? task.id.toString().slice(-6) : '891362'}

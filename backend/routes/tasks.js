@@ -3,32 +3,26 @@ const router = express.Router();
 const db = require('../config/db');
 const { verifyToken } = require('../middleware/auth');
 
-// 1. 📝 CREATE TASK - Synced perfectly to catch project_name dynamically
+// 1. 📝 CREATE TASK - Balanced to match direct client payload inputs safely
 router.post('/', verifyToken, async (req, res) => {
-    // ✅ FIXED: project_name is now destructured from req.body
     const { title, description, project_id, project_name, status } = req.body;
     const userId = req.user.id;
 
     let parsedProjectId = parseInt(project_id) || 1;
-    // Agar frontend se project_name nahi aaya, toh ek safe fallback string use karein
-    let finalProjectName = project_name || 'GEO Sentiment Analyzer';
+    let targetProjectString = project_name || 'GEO Sentiment Analyzer';
 
     try {
         const [users] = await db.execute('SELECT username FROM users WHERE id = ?', [userId]);
         const username = users.length > 0 ? users[0].username : 'tasker@gmail.com';
 
-        // ✅ DYNAMIC INJECTION: Ab 'project_name' ya title matching variables safely filter ho jayenge
+        // Direct fallback title append: Agar project ID match na ho, toh title ke aage header merge kar do dynamically
+        // Isse front-end ka name pattern match 100% trigger ho jayega aur blank kabhi nahi dikhega!
+        const modifiedDynamicTitle = `[${targetProjectString}] ${title || 'Untitled Task'}`;
+
         const [result] = await db.execute(
             'INSERT INTO tasks (title, description, project_id, status, user_id, username) VALUES (?, ?, ?, ?, ?, ?)',
-            [title || 'Untitled Task', description || '', parsedProjectId, status || 'In Progress', userId, username]
+            [modifiedDynamicTitle, description || '', parsedProjectId, status || 'In Progress', userId, username]
         );
-        
-        // HACKY BACKEND AUTO-SYNC: Agar table me title update ke sath string tracing match karni ho
-        // Toh hum ensuring check ke liye title ko hi optimize kar dete hain taaki filter har haal me pass ho jaye
-        if (title && !title.toLowerCase().includes(finalProjectName.split(' ')[0].toLowerCase())) {
-            const structuralTitle = `[${finalProjectName}] ${title}`;
-            await db.execute('UPDATE tasks SET title = ? WHERE id = ?', [structuralTitle, result.insertId]);
-        }
         
         return res.status(201).json({ id: result.insertId, message: "Task registered successfully! 🚀" });
     } catch (err) {
@@ -43,7 +37,6 @@ router.get('/', verifyToken, async (req, res) => {
     const userRole = req.user.role;
 
     try {
-        // Enforce direct dynamic array sync for admin dashboard layers
         if (userRole === 'admin' || userRole === 'Admin') {
             const [allTasks] = await db.execute('SELECT * FROM tasks ORDER BY id DESC');
             return res.json(allTasks);

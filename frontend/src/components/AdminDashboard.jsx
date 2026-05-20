@@ -247,7 +247,7 @@ const AdminDashboard = () => {
             </>
           )}
 
-          {/* ✅ TAB: TASK REVIEW PANEL WITH HIGH-SURVIVAL DYNAMIC CLUSTERING */}
+          {/* ✅ TAB: TASK REVIEW PANEL WITH HIGH-SURVIVAL TEXT REFRACTORING */}
           {activeTab === 'reviews' && (
             <div style={styles.viewPanel}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'25px'}}>
@@ -261,23 +261,21 @@ const AdminDashboard = () => {
               <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
                 {projectsList.map((proj, index) => {
                   
-                  // ⚡ ADVANCED CLUSTER FALLBACK FILTERING:
+                  // Dynamic High-Accuracy Filter Loop
                   const projectTasks = allTasks.filter(t => {
-                    const taskIdMatch = t.project_id && (parseInt(t.project_id) === parseInt(proj.id) || String(t.project_id) === String(proj.id));
-                    const taskNameMatch = t.project_name && proj.name && String(t.project_name).trim().toLowerCase() === String(proj.name).trim().toLowerCase();
+                    const taskTitleRaw = String(t.title || '').toLowerCase();
+                    const currentProjNameRaw = String(proj.name || '').toLowerCase();
                     
-                    // Core Smart Fallback keywords algorithm parsing
-                    const wordList = String(proj.name).toLowerCase().split(' ');
-                    const firstKeyword = wordList[0]; // e.g., 'geo', 'face', 'portfolio'
-                    const secondKeyword = wordList[1] || firstKeyword; // e.g., 'sentiment', 'recognition', 'website'
+                    const firstWord = currentProjNameRaw.split(' ')[0]; // 'geo', 'face', 'portfolio'
+                    
+                    // Match condition by explicit brackets header OR database IDs fallback
+                    const hasBracketsMatch = taskTitleRaw.includes(`[${currentProjNameRaw}]`) || taskTitleRaw.includes(firstWord);
+                    const hasIdMatch = t.project_id && (String(t.project_id) === String(proj.id));
+                    
+                    // Agar purana task bina bracket ke save hua hai aur index matching first row hai
+                    const fallbackFirstRow = index === 0 && (!t.project_id || String(t.project_id) === '1');
 
-                    const titleMatch = t.title && (String(t.title).toLowerCase().includes(firstKeyword) || String(t.title).toLowerCase().includes(secondKeyword));
-                    const descMatch = t.description && (String(t.description).toLowerCase().includes(firstKeyword) || String(t.description).toLowerCase().includes(secondKeyword));
-
-                    // Catch dynamic fallback index default inputs allocation mapping loops
-                    const isDefaultFallbackIdx = (parseInt(t.project_id) === 1 || String(t.project_id) === '') && index === 0;
-
-                    return taskIdMatch || taskNameMatch || titleMatch || descMatch || isDefaultFallbackIdx;
+                    return hasBracketsMatch || hasIdMatch || fallbackFirstRow;
                   });
 
                   const completedCount = projectTasks.filter(t => String(t.status).toLowerCase() === 'completed').length;
@@ -316,37 +314,40 @@ const AdminDashboard = () => {
                                     <th style={styles.thCell}>TASK ID</th>
                                     <th style={styles.thCell}>TASK DETAILS</th>
                                     <th style={styles.thCell}>DATE</th>
-                                    <th style={styles.thCell}>STATUS</th>
+                                    <th style={styles.thCell}>STATUS STATE</th>
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {projectTasks.map(task => (
-                                    <tr key={task.id} className="tr-row-hover" style={styles.trRowTable}>
-                                      <td style={{...styles.tdCell, color:'#00f5d4', fontWeight:'600', fontSize:'14px', width: '22%'}}>
-                                        👤 {task.username || 'global_tasker'}
-                                      </td>
-                                      <td style={{...styles.tdCell, color:'#525866', fontWeight:'500', fontSize:'14px', width: '12%'}}>
-                                        #{task.id ? task.id.toString().slice(-6) : '891362'}
-                                      </td>
-                                      <td style={styles.tdCell}>
-                                        <div style={{fontWeight:'600', color:'#f2f4f8', fontSize: '15px'}}>{task.title}</div>
-                                        <div style={{fontSize:'13px', color:'#7e869c', marginTop:'4px'}}>{task.description || 'No context attached'}</div>
-                                      </td>
-                                      <td style={{...styles.tdCell, color:'#7e869c', width: '15%', fontSize: '14px'}}>
-                                        {task.created_at ? String(task.created_at).split('T')[0] : new Date().toISOString().split('T')[0]}
-                                      </td>
-                                      <td style={{...styles.tdCell, width: '15%'}}>
-                                        <span style={{
-                                          fontWeight:'600', fontSize:'11px', padding:'3px 10px', borderRadius:'5px',
-                                          color: String(task.status).toLowerCase() === 'completed' ? '#00f5d4' : '#ffb703',
-                                          background: String(task.status).toLowerCase() === 'completed' ? 'rgba(0, 245, 212, 0.06)' : 'rgba(255, 183, 3, 0.06)',
-                                          border: `1px solid ${String(task.status).toLowerCase() === 'completed' ? 'rgba(0, 245, 212, 0.12)' : 'rgba(255, 183, 3, 0.12)'}`
-                                        }}>
-                                          {task.status ? task.status.toUpperCase() : 'IN PROGRESS'}
-                                        </span>
-                                      </td>
-                                    </tr>
-                                  ))}
+                                  {projectTasks.map(task => {
+                                    // Title string cleanup loop to hide brackets on Admin Table UI cleanly
+                                    const cleanTitleDisplay = String(task.title || '').replace(/^\[.*?\]\s*/, '');
+
+                                    return (
+                                      <tr key={task.id} className="tr-row-hover" style={styles.trRowTable}>
+                                        <td style={{...styles.tdCell, color:'#00f5d4', fontWeight:'600', fontSize:'14px', width: '20%'}}>
+                                          👤 {task.username || 'global_tasker'}
+                                        </td>
+                                        <td style={{...styles.tdCell, color:'#525866', fontWeight:'500', fontSize:'14px', width: '12%'}}>
+                                          #{task.id ? task.id.toString().slice(-6) : '891362'}
+                                        </td>
+                                        <td style={styles.tdCell}>
+                                          <div style={{fontWeight:'600', color:'#f2f4f8', fontSize: '15px'}}>{cleanTitleDisplay}</div>
+                                          <div style={{fontSize:'13px', color:'#7e869c', marginTop:'4px'}}>{task.description || 'No context attached'}</div>
+                                        </td>
+                                        <td style={{...styles.tdCell, color:'#7e869c', width: '15%', fontSize: '14px'}}>
+                                          {task.created_at ? String(task.created_at).split('T')[0] : new Date().toISOString().split('T')[0]}
+                                        </td>
+                                        <td style={{...styles.tdCell, width: '15%'}}>
+                                          <span style={{
+                                            fontWeight:'600', fontSize:'11px', padding:'3px 10px', borderRadius:'5px',
+                                            color: String(task.status).toLowerCase() === 'completed' ? '#00f5d4' : '#ffb703',
+                                            background: String(task.status).toLowerCase() === 'completed' ? 'rgba(0, 245, 212, 0.06)' : 'rgba(255, 183, 3, 0.06)',
+                                            border: `1px solid ${String(task.status).toLowerCase() === 'completed' ? 'rgba(0, 245, 212, 0.12)' : 'rgba(255, 183, 3, 0.12)'}`
+                                          }}>{task.status ? task.status.toUpperCase() : 'IN PROGRESS'}</span>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             </div>

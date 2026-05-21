@@ -28,25 +28,21 @@ router.post('/', verifyToken, async (req, res) => {
     }
 });
 
+// routes/tasks.js
 router.get('/', verifyToken, async (req, res) => {
+    const userRole = req.user.role; 
     const userEmail = req.user.username;
-    const userRole = req.user.role;
 
     try {
-        if (userRole === 'admin' || userRole === 'Admin') {
+        // ✅ ADMIN LOGIC: Role check karo
+        if (userRole === 'Quality Reviewer' || userRole === 'Admin') {
             const [allTasks] = await db.execute('SELECT * FROM tasks ORDER BY id DESC');
             return res.json(allTasks);
         } else {
-            // ✅ YE FIX HAI: Agar username column mein data hai, toh sirf wahi dikhao
-            // Agar data nahi hai (NULL), toh wo task user ko nahi dikhega (leakage stop)
-            const [tasks] = await db.execute(
-                'SELECT * FROM tasks WHERE username = ? ORDER BY id DESC', 
-                [userEmail]
-            );
+            const [tasks] = await db.execute('SELECT * FROM tasks WHERE username = ? ORDER BY id DESC', [userEmail]);
             return res.json(tasks || []);
         }
     } catch (err) {
-        console.error("GET Tasks Error:", err);
         return res.status(500).json({ error: err.message });
     }
 });

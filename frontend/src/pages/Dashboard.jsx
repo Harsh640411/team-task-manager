@@ -249,23 +249,18 @@ const fetchTasks = async () => {
       });
 
       if (res.data && Array.isArray(res.data)) {
-        // 🔥 FIX 1: SERVER DATA FILTERING
-        // Server se aaye saare tasks mein se sirf wahi tasks rakho jo current user ke hain.
-        // Backend mein 'username' column fill ho chuka hai, isliye hum t.username check karenge.
-        const myTasks = res.data.filter(t => 
-            t.username === activeUserSessionEmail || 
-            (t.title && t.title.includes(`(By: ${activeUserSessionEmail.split('@')[0]})`))
-        );
+        // ✅ ADMIN BYPASS LOGIC:
+        // Agar user 'Quality Reviewer' ya 'Admin' hai, toh filtering mat lagao
+        const isAdmin = userData.role === 'Quality Reviewer' || userData.role === 'Admin';
+        
+        const myTasks = isAdmin 
+            ? res.data 
+            : res.data.filter(t => t.username === activeUserSessionEmail || (t.title && t.title.includes(`(By: ${activeUserSessionEmail.split('@')[0]})`)));
 
-        // 🔥 FIX 2: LOCAL STORAGE CLEANUP
-        // Purane tasks ka mix-up hatane ke liye hum seedha myTasks ko set kar rahe hain.
-        // LocalStorage mein sirf current user ka data hi rahega.
         setTasks(myTasks);
         localStorage.setItem(`praphool_tasks_backup_${userKey}`, JSON.stringify(myTasks));
       }
-    } catch (err) { 
-      console.error("Fetch Tasks Error:", err); 
-    }
+    } catch (err) { console.error("Fetch Tasks Error:", err); }
   };
   const fetchProjects = async () => {
     try {

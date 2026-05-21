@@ -28,27 +28,27 @@ router.post('/', verifyToken, async (req, res) => {
     }
 });
 
-// GET /api/tasks (Backend tasks.js mein yeh update karo)
 router.get('/', verifyToken, async (req, res) => {
-    const userEmail = req.user.username;
-    const userRole = req.user.role;
+    const userEmail = req.user.username;
+    const userRole = req.user.role;
 
-    try {
-        let query = 'SELECT * FROM tasks ORDER BY id DESC';
-        let params = [];
-
-        // Admin ke liye sab dikhao, baaki sirf apne tasks
-        if (userRole !== 'admin' && userRole !== 'Admin') {
-            query = 'SELECT * FROM tasks WHERE username = ? ORDER BY id DESC';
-            params = [userEmail];
-        }
-
-        const [tasks] = await db.execute(query, params);
-        return res.json(tasks || []); // Empty array return karo agar kuch na mile
-    } catch (err) {
-        console.error("GET Tasks Error:", err);
-        return res.status(500).json({ error: "Server Error" });
-    }
+    try {
+        if (userRole === 'admin' || userRole === 'Admin') {
+            const [allTasks] = await db.execute('SELECT * FROM tasks ORDER BY id DESC');
+            return res.json(allTasks);
+        } else {
+            // ✅ YE FIX HAI: Agar username column mein data hai, toh sirf wahi dikhao
+            // Agar data nahi hai (NULL), toh wo task user ko nahi dikhega (leakage stop)
+            const [tasks] = await db.execute(
+                'SELECT * FROM tasks WHERE username = ? ORDER BY id DESC', 
+                [userEmail]
+            );
+            return res.json(tasks || []);
+        }
+    } catch (err) {
+        console.error("GET Tasks Error:", err);
+        return res.status(500).json({ error: err.message });
+    }
 });
 
 // 3. 🎯 UPDATE TASK STATUS

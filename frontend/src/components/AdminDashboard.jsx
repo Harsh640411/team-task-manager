@@ -122,7 +122,6 @@ const AdminDashboard = () => {
   const totalLeavesRejected = leaveRequests.filter(l => l.status === 'Rejected' || l.status === 'rejected').length;
   const pendingLeavesArray = leaveRequests.filter(l => String(l.status).toLowerCase() === 'pending');
 
-  // ⚡ DYNAMIC UNIQUE TEAM DISCOVERY: Extract list of actual system taskers from dynamic data payloads safely
   const uniquePlatformUsersList = [...new Set(allTasks.map(t => {
     if (t.username && t.username !== 'tasker@gmail.com') return t.username;
     if (t.title && String(t.title).includes('(By:')) {
@@ -139,25 +138,25 @@ const AdminDashboard = () => {
     }).sort((a, b) => b.completed - a.completed);
   };
 
-  // ✅ DYNAMIC MATH ENGINE: 100% Correct Calculation Without Matrix Collapses
-  const totalLiveDatabaseEngineers = uniquePlatformUsersList.length; // Active Members count (3)
-
-  // Strictly check how many unique bando ki leave approve ho chuki hai
+  const totalLiveDatabaseEngineers = uniquePlatformUsersList.length; 
+  
   const activeStaffOnApprovedLeave = uniquePlatformUsersList.filter(user => {
     return leaveRequests.some(l => {
       if (String(l.status).toLowerCase() !== 'approved') return false;
-      
       const leaveUser = String(l.username || '').toLowerCase().trim();
       const platformUser = String(user || '').toLowerCase().trim();
       const leaveHandle = leaveUser.split('@')[0];
-
       return leaveUser === platformUser || platformUser.includes(leaveHandle) || leaveUser.includes(platformUser);
     });
   }).length;
 
-  // Final Output Filters Variables Locked Safely
-  const calculatedOfflineCount = activeStaffOnApprovedLeave; // Jitne approved hain utne 'On Leave' (1)
-  const calculatedOnlineCount = Math.max(0, totalLiveDatabaseEngineers - calculatedOfflineCount); // Baki bache saare 'Online' (2)
+  const calculatedOfflineCount = activeStaffOnApprovedLeave; 
+  const calculatedOnlineCount = Math.max(0, totalLiveDatabaseEngineers - calculatedOfflineCount);
+
+  // 📈 NEW REAL-TIME PLATFORM METRICS COMPUTATION (NO MORE FAKE DATA)
+  const avgTasksPerUser = totalLiveDatabaseEngineers > 0 ? (allTasks.length / totalLiveDatabaseEngineers).toFixed(1) : 0;
+  const systemLoadState = allTasks.length - totalCompleted > 5 ? 'High Activity' : 'Balanced';
+  const leaveProcessEfficiency = totalLeavesReceived > 0 ? Math.round(((totalLeavesApproved + totalLeavesRejected) / totalLeavesReceived) * 100) : 100;
 
   const toggleProjectExpand = (projectId) => {
     if (expandedProjectId === projectId) {
@@ -337,12 +336,13 @@ const AdminDashboard = () => {
                 )}
               </div>
 
+              {/* ✅ UPDATED: REPLACED OLD TELEMETRY WITH REAL-TIME PRODUCTIVITY TELEMETRY */}
               <div className="card-glow-hover" style={{...styles.taskFormCard, marginTop: '25px'}}>
-                <h3 style={{...styles.cardBlockTitle, fontSize:'12px', color:'#7e869c', letterSpacing: '0.6px'}}>🛡️ MASTER ADMIN PLATFORM TELEMETRY</h3>
+                <h3 style={{...styles.cardBlockTitle, fontSize:'12px', color:'#7e869c', letterSpacing: '0.6px'}}>📈 REAL-TIME PLATFORM PRODUCTIVITY TELEMETRY</h3>
                 <div style={styles.telemetryGrid}>
-                  <div style={styles.telemetryBox}><span style={{color:'#7e869c'}}>System Health</span><strong style={{color:'#00f5d4'}}> Online</strong></div>
-                  <div style={styles.telemetryBox}><span style={{color:'#7e869c'}}>DB Node Pools</span><strong style={{color:'#9d4edd'}}> Connected</strong></div>
-                  <div style={styles.telemetryBox}><span style={{color:'#7e869c'}}>Deployment Environment</span><strong style={{color: '#f2f4f8'}}> Railway Production</strong></div>
+                  <div style={styles.telemetryBox}><span style={{color:'#7e869c'}}>Avg Tasks / User</span><strong style={{color:'#00f5d4'}}>{avgTasksPerUser} Tasks</strong></div>
+                  <div style={styles.telemetryBox}><span style={{color:'#7e869c'}}>System Load State</span><strong style={{color:'#9d4edd'}}>{systemLoadState}</strong></div>
+                  <div style={styles.telemetryBox}><span style={{color:'#7e869c'}}>Leave Audit Efficiency</span><strong style={{color: '#f2f4f8'}}>{leaveProcessEfficiency}% processed</strong></div>
                 </div>
               </div>
             </>

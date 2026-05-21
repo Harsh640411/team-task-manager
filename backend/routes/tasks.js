@@ -28,23 +28,26 @@ router.post('/', verifyToken, async (req, res) => {
     }
 });
 
-// 2. 🔍 GET TASKS - FIX: Removed 'allTasks' fallback leakage
+// GET /api/tasks (Backend tasks.js mein yeh update karo)
 router.get('/', verifyToken, async (req, res) => {
     const userEmail = req.user.username;
     const userRole = req.user.role;
 
     try {
-        if (userRole === 'admin' || userRole === 'Admin') {
-            const [allTasks] = await db.execute('SELECT * FROM tasks ORDER BY id DESC');
-            return res.json(allTasks);
-        } else {
-            // ✅ FIX: Yahan filter lagaya hai jo sirf login email se match karega
-            // Agar koi task nahi mila, toh empty array [] bhejo, na ki sab tasks
-            const [allTasks] = await db.execute('SELECT * FROM tasks WHERE username = ? ORDER BY id DESC', [userEmail]);
-            return res.json(allTasks);
+        let query = 'SELECT * FROM tasks ORDER BY id DESC';
+        let params = [];
+
+        // Admin ke liye sab dikhao, baaki sirf apne tasks
+        if (userRole !== 'admin' && userRole !== 'Admin') {
+            query = 'SELECT * FROM tasks WHERE username = ? ORDER BY id DESC';
+            params = [userEmail];
         }
+
+        const [tasks] = await db.execute(query, params);
+        return res.json(tasks || []); // Empty array return karo agar kuch na mile
     } catch (err) {
-        return res.status(500).json({ error: err.message });
+        console.error("GET Tasks Error:", err);
+        return res.status(500).json({ error: "Server Error" });
     }
 });
 

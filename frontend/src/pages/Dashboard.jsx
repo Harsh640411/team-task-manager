@@ -122,11 +122,12 @@ const Dashboard = () => {
     }
   }, [tasks, activeUserSessionEmail]);
 
-  // GLOBAL CLICK DISMISSAL
-  useEffect(() => {
+  // 3. Header Dropdown Error Fix
+// Global Click Dismissal Effect ko update karo:
+useEffect(() => {
     const handleGlobalClickDismissal = (event) => {
       if (!event.target.closest('#praphool-header-avatar') && !event.target.closest('#praphool-notification-trigger')) {
-        showHeaderDropdown(false);
+        setShowHeaderDropdown(false); // ✅ Correct: Using setter
         setShowNotificationDropdown(false);
       }
       if (!event.target.closest('#praphool_sidebar_settings_trigger')) {
@@ -135,7 +136,7 @@ const Dashboard = () => {
     };
     document.addEventListener('click', handleGlobalClickDismissal);
     return () => document.removeEventListener('click', handleGlobalClickDismissal);
-  }, []);
+}, []);
 
   useEffect(() => {
     document.body.style.backgroundColor = '#0d0e12';
@@ -239,28 +240,28 @@ const Dashboard = () => {
     } catch (err) { console.error(err); }
   };
 
-  const fetchTasks = async () => {
-    const activeTabToken = sessionStorage.getItem('token') || localStorage.getItem('token');
-    if (!activeTabToken) return;
-    try {
-      const res = await axios.get('https://team-task-manager-production-fb15.up.railway.app/api/tasks', {
-        headers: { Authorization: `Bearer ${activeTabToken}` }
-      });
-      if (res.data && Array.isArray(res.data)) {
-        const serverData = res.data;
-        const localTasks = JSON.parse(localStorage.getItem(`praphool_tasks_backup_${userKey}`) || '[]');
-        
-        const pendingLocals = localTasks.filter(lt => lt.status === 'In Progress' && !serverData.some(st => String(st.id) === String(lt.id)));
-        const localCompletedTasks = localTasks.filter(lt => lt.status === 'Completed');
-        const nonDuplicateServerData = serverData.filter(st => !localCompletedTasks.some(lct => String(lct.id) === String(st.id)));
-
-        const finalMerged = [...localCompletedTasks, ...pendingLocals, ...nonDuplicateServerData].sort((a, b) => b.id - a.id);
-        
-        setTasks(finalMerged);
-        localStorage.setItem(`praphool_tasks_backup_${userKey}`, JSON.stringify(finalMerged));
-      }
-    } catch (err) { console.error(err); }
-  };
+  // 1. fetchTasks ko isse replace karo
+const fetchTasks = async () => {
+  const activeTabToken = sessionStorage.getItem('token') || localStorage.getItem('token');
+  if (!activeTabToken || !activeUserSessionEmail) return;
+  
+  try {
+    const res = await axios.get('https://team-task-manager-production-fb15.up.railway.app/api/tasks', {
+      headers: { Authorization: `Bearer ${activeTabToken}` }
+    });
+    
+    if (res.data && Array.isArray(res.data)) {
+      // 🔥 IDENTITY ISOLATION: Filter only by current login session email
+      const myTasks = res.data.filter(t => 
+        t.username === activeUserSessionEmail || 
+        (t.title && t.title.includes(`(By: ${activeUserSessionEmail.split('@')[0]})`))
+      );
+      
+      setTasks(myTasks);
+      localStorage.setItem(`praphool_tasks_backup_${userKey}`, JSON.stringify(myTasks));
+    }
+  } catch (err) { console.error("Fetch Tasks Error:", err); }
+};
 
   const fetchProjects = async () => {
     try {

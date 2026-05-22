@@ -62,3 +62,58 @@ npm install
 ```
 
 ### 🛢️ Step 3: Environment Setup(.env)**
+```
+# Server Configuration
+PORT=5000
+
+# Database Configuration (Railway MySQL)
+DB_HOST=containers-us-west-xx.railway.app
+DB_USER=root
+DB_PASSWORD=your_db_password
+DB_NAME=railway
+DB_PORT=5000
+
+# Security
+JWT_SECRET=your_super_secret_key_123
+
+# CORS Policy (Allow your frontend URL here)
+FRONTEND_URL=http://localhost:5173
+```
+
+### ▶️ Step 4: Run the Application
+```
+# Start backend
+cd backend
+node server.js
+
+# Start frontend
+cd ../frontend
+npm start
+```
+
+### 💡 Key Functionalities
+* Intelligent Shift Tracking: Automated punch-in/out system with a robust 08:00 AM daily reset mechanism for accurate shift logging.
+* Productivity Analytics: A real-time leaderboard engine that ranks team members based on task completion and performance metrics.
+* Project-Centric Auditing: Advanced segmentation that maps tasks to specific projects, enabling precise progress oversight.
+* Streamlined Leave Workflow: Centralized request management with automated status tracking and real-time team availability syncing.
+* Operational Telemetry: Interactive data visualization for team shifts, workload distribution, and audit efficiency.
+
+
+### 🤝 Contribution
+
+Contributions are welcome! To contribute:
+
+Fork the repository.
+Create a feature branch (git checkout -b feature-branch).
+Commit your changes (git commit -m "Add new feature").
+Push to the branch (git push origin feature-branch).
+Open a Pull Request.
+
+
+### 📧 Contact & Support
+
+For any queries, reach out to:
+👤 Praphool Rathore
+📩 Email: praphoolrathore2003@gmail.com
+🔗 LinkedIn: [Connect with me](www.linkedin.com/in/harshvardhan-sharma-246919297)
+🌍 GitHub: [Project Repository](https://github.com/praphoolrathore/face_recognition_system)

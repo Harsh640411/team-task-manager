@@ -121,5 +121,5 @@ Fork the repository.
 For any queries, reach out to:
 * 👤 Harsh Vardhan Sharma
 * 📩 Email: hs9733492@gmail.com
-* 🔗 LinkedIn: [Connect with me](www.linkedin.com/in/harshvardhan-sharma-246919297)
+* 🔗 LinkedIn: [Connect with me](https://www.linkedin.com/in/harshvardhan-sharma-246919297)
 * 🌍 GitHub: [Project Repository](https://github.com/Harsh640411/team-task-manager)

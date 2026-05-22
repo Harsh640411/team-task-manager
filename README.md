@@ -104,16 +104,16 @@ npm start
 Contributions are welcome! To contribute:
 
 Fork the repository.
-Create a feature branch (git checkout -b feature-branch).
-Commit your changes (git commit -m "Add new feature").
-Push to the branch (git push origin feature-branch).
-Open a Pull Request.
+* Create a feature branch (git checkout -b feature-branch).
+* Commit your changes (git commit -m "Add new feature").
+* Push to the branch (git push origin feature-branch).
+* Open a Pull Request.
 
 
 ### 📧 Contact & Support
 
 For any queries, reach out to:
-👤 Praphool Rathore
-📩 Email: hs9733492@gmail.com
-🔗 LinkedIn: [Connect with me](www.linkedin.com/in/harshvardhan-sharma-246919297)
-🌍 GitHub: [Project Repository](https://github.com/praphoolrathore/face_recognition_system)
+* 👤 Harsh Vardhan Sharma
+* 📩 Email: hs9733492@gmail.com
+* 🔗 LinkedIn: [Connect with me](www.linkedin.com/in/harshvardhan-sharma-246919297)
+* 🌍 GitHub: [Project Repository](https://github.com/Harsh640411/team-task-manager)

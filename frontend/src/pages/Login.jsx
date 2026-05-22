@@ -51,7 +51,7 @@ const Login = () => {
   };
 
   const fillAdminCredentials = () => {
-    setEmail('harshvardhans809@gmail.com');
+    setEmail('hs9733492@gmail.com');
     setPassword('Harsh@0987');
   };
 

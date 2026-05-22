@@ -48,7 +48,7 @@ router.post('/signup', async (req, res) => {
     }
 });
 
-// LOGIN
+// LOGIN ROUTE IN routes/auth.js
 router.post('/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -57,7 +57,12 @@ router.post('/login', async (req, res) => {
         const isMatch = await bcrypt.compare(password, users[0].password_hash);
         if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
 
-        const token = jwt.sign({ id: users[0].id, role: users[0].role }, process.env.JWT_SECRET, { expiresIn: '24h' });
+        // ✅ FIX: Token ke andar 'username' add kar diya
+        const token = jwt.sign(
+            { id: users[0].id, role: users[0].role, username: users[0].username }, 
+            process.env.JWT_SECRET, 
+            { expiresIn: '24h' }
+        );
         res.json({ token, username: users[0].username });
     } catch (err) { res.status(500).json({ error: "Server error" }); }
 });

@@ -1,6 +1,8 @@
+// routes/projects.js ka top section
 const express = require('express');
 const router = express.Router();
-const db = require('../../config/db'); // Adjust path if necessary, usually '../config/db'
+// ✅ FIX: Removed one extra '../'
+const db = require('../config/db'); 
 const { verifyToken } = require('../middleware/auth');
 
 // Get all projects

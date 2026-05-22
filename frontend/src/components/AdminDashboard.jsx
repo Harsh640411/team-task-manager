@@ -135,13 +135,16 @@ const AdminDashboard = () => {
   const totalLeavesRejected = leaveRequests.filter(l => l.status === 'Rejected' || l.status === 'rejected' || String(l.status).toUpperCase() === 'REJECTED').length;
   const pendingLeavesArray = leaveRequests.filter(l => String(l.status).toLowerCase() === 'pending');
 
-  const uniquePlatformUsersList = [...new Set(allTasks.map(t => {
-    if (t.username && t.username !== 'tasker@gmail.com') return t.username;
-    if (t.title && String(t.title).includes('(By:')) {
-      return `User ID: ${String(t.title).split('(By:')[1].replace(')', '').trim()}`;
-    }
-    return '';
-  }))].filter(userStr => userStr !== '');
+  const uniquePlatformUsersList = [...new Set([
+    ...allTasks.map(t => {
+      if (t.username && t.username !== 'tasker@gmail.com') return t.username;
+      if (t.title && String(t.title).includes('(By:')) {
+        return String(t.title).split('(By:')[1].replace(')', '').trim();
+      }
+      return '';
+    }),
+    ...leaveRequests.map(l => l.username || '')
+  ])].filter(userStr => userStr !== '');
 
   const getLeaderboardData = () => {
     return uniquePlatformUsersList.map(user => {
@@ -151,7 +154,6 @@ const AdminDashboard = () => {
     }).sort((a, b) => b.completed - a.completed);
   };
 
-  // ✅ SHIFT LEAVE MATHEMATICAL COUNTERS
   const totalLiveDatabaseEngineers = uniquePlatformUsersList.length; 
 
   const getSystemTodayDateString = () => {
@@ -166,19 +168,8 @@ const AdminDashboard = () => {
   const activeStaffOnApprovedLeaveNames = [...new Set(approvedLeavesArray.map(l => String(l.username || '').trim()))];
 
   const calculatedOfflineCount = activeStaffOnApprovedLeaveNames.length;
-  
-  const realEngineersOnLeaveCount = uniquePlatformUsersList.filter(user => {
-    const cleanUser = String(user).toLowerCase().trim();
-    const userHandle = cleanUser.replace('user id: ', '').trim();
-    return activeStaffOnApprovedLeaveNames.some(leaveEmail => {
-      const cleanEmail = leaveEmail.toLowerCase().trim();
-      return cleanEmail === cleanUser || cleanEmail.includes(userHandle) || cleanUser.includes(cleanEmail.split('@')[0]);
-    });
-  }).length;
+  const calculatedOnlineCount = Math.max(0, totalLiveDatabaseEngineers - calculatedOfflineCount);
 
-  const calculatedOnlineCount = Math.max(0, totalLiveDatabaseEngineers - realEngineersOnLeaveCount);
-
-  // 📈 TELEMETRY PARAMETERS
   const avgTasksPerUser = totalLiveDatabaseEngineers > 0 ? (allTasks.length / totalLiveDatabaseEngineers).toFixed(1) : 0;
   const pendingTasksTotalCount = allTasks.length - totalCompleted;
   const systemLoadState = pendingTasksTotalCount > 5 ? 'High Activity' : 'Balanced';
@@ -248,18 +239,16 @@ const AdminDashboard = () => {
           <div style={styles.logoIcon}>TT</div>
           <span style={styles.logoText}>Task Track</span>
         </div>
-        <div className="nav-item-hover" style={styles.userProfileSide} onClick={() => setShowProfileDropdown(!showProfileDropdown)}>
+        
+        {/* ✅ FIX 1: Sidebar Profile without Dropdown, with Pill Box */}
+        <div style={styles.userProfileSide}>
           <div style={styles.avatarLarge}>AD</div>
           <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
-            <div style={styles.userNameSide}>{adminData.username || 'admin@tasktrack.com'}</div>
-            <div style={styles.userRoleBadge}>QUALITY REVIEWER</div>
+            <div style={styles.emailContainerSidebar}>{adminData.username || 'admin@tasktrack.com'}</div>
+            <div style={styles.userRoleBadge}>ADMIN</div>
           </div>
-          {showProfileDropdown && (
-            <div style={styles.profileAbsoluteBox}>
-              <div className="tr-row-hover" style={styles.dropdownOptionRow} onClick={handleLogout}>Logout Admin →</div>
-            </div>
-          )}
         </div>
+
         <nav style={styles.navLinks}>
           <div className={`nav-item-hover ${activeTab === 'dashboard' ? 'nav-item-active-hover' : ''}`} style={{...styles.navItem, ...(activeTab === 'dashboard' ? styles.navActive : {})}} onClick={() => setActiveTab('dashboard')}>
             <span style={styles.navIcon}>📋</span> Dashboard
@@ -292,9 +281,25 @@ const AdminDashboard = () => {
                 </div>
               )}
             </div>
-            <div style={styles.headerUser}>
-              <div style={styles.avatarSmall}>A</div>
-              <span style={{ fontSize: '14px', fontWeight: '500', color: '#f2f4f8' }}>{adminData.username?.split('@')[0]} ⌵</span>
+
+            {/* ✅ FIX 2: Header Profile Pill Box with Hover Dropdown */}
+            <div 
+              style={{position: 'relative', cursor: 'pointer'}} 
+              onMouseEnter={() => setShowProfileDropdown(true)} 
+              onMouseLeave={() => setShowProfileDropdown(false)}
+            >
+               <div style={styles.headerUserPill}>
+                 <div style={styles.avatarSmall}>AD</div>
+                 <span style={{ fontSize: '14px', fontWeight: '500', color: '#f2f4f8' }}>
+                   {adminData.username} ▼
+                 </span>
+               </div>
+               
+               {showProfileDropdown && (
+                 <div style={styles.headerDropdownWhite}>
+                   <div className="tr-row-hover" style={styles.headerDropdownItem} onClick={handleLogout}>↪ Log Out</div>
+                 </div>
+               )}
             </div>
           </div>
         </header>
@@ -358,7 +363,7 @@ const AdminDashboard = () => {
 
                 {/* 📊 TEAM SHIFT METRICS SUMMARY */}
                 <div className="card-glow-hover" style={styles.taskFormCard}>
-                  <h3 style={styles.cardBlockTitle}>📊 Team Shift Metrics Summary</h3>
+                  <h3 style={styles.cardBlockTitle}>📊 Shift Productivity Report</h3>
                   <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', height: '80%'}}>
                     <div style={{background: '#0d0e12', padding: '16px', borderRadius: '12px', border: '1px solid #1f222c', display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
                       <span style={{color: '#7e869c', fontSize: '12px', fontWeight: '600', letterSpacing: '0.5px'}}>LIVE SHIFTS ACTIVE</span>
@@ -509,7 +514,7 @@ const AdminDashboard = () => {
                       setShowLoadStats(!showLoadStats); setShowUserStats(false); setShowLeaveStats(false);
                     }}
                   >
-                    <span style={{color:'#7e869c'}}>System Load State 📊</span>
+                    <span style={{color:'#7e869c'}}>Platform Status 📊</span>
                     <strong style={{color:'#9d4edd'}}>{systemLoadState} ({pendingTasksTotalCount} Pending)</strong>
                   </div>
 
@@ -761,8 +766,8 @@ const AdminDashboard = () => {
                             <td style={{...styles.tdCell, textAlign: 'center'}}>
                               {String(req.status).toLowerCase() === 'pending' ? (
                                 <div style={{display:'flex', gap:'8px', justifyContent:'center'}}>
-                                  <button className="btn-scale-hover" onClick={() => handleLeaveAction(req.id, 'Approved')} style={{...styles.acceptBtn, padding: '6px 12px', fontSize: '12px'}}>✓ Approve</button>
-                                  <button className="btn-scale-hover" onClick={() => handleLeaveAction(req.id, 'Rejected')} style={{...styles.rejectBtn, padding: '6px 12px', fontSize: '12px'}}>✕ Reject</button>
+                                  <button className="btn-scale-hover" onClick={() => handleLeaveAction(req.id, 'Approved')} style={styles.miniAcceptBtn}>✓ Approve</button>
+                                  <button className="btn-scale-hover" onClick={() => handleLeaveAction(req.id, 'Rejected')} style={styles.miniRejectBtn}>✕ Reject</button>
                                 </div>
                               ) : (
                                 <span style={{
@@ -830,7 +835,18 @@ const AdminDashboard = () => {
 };
 
 // Styles Matrix Registry Definition
+
 const styles = {
+  headerDropdownWhite: { 
+      position: 'absolute', top: '55px', right: '0', width: '160px', 
+      background: '#1f222c', border: '1px solid #2d313f', borderRadius: '8px', 
+      boxShadow: '0 12px 28px -5px rgba(0,0,0,0.6)', zIndex: 1000, 
+      padding: '5px 0', overflow: 'hidden' 
+  },
+  headerDropdownItem: { 
+      padding: '12px 16px', color: '#ff5c5c', fontWeight: '600', 
+      cursor: 'pointer', fontSize: '14px' 
+  },
   appContainer: { display: 'flex', height: '100vh', background: '#0d0e12', color: '#f2f4f8', fontFamily: "'Inter', sans-serif", overflow: 'hidden' },
   sidebar: { width: '270px', background: '#14161d', display: 'flex', flexDirection: 'column', padding: '26px', borderRight: '1px solid #1f222c' },
   logoSection: { display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '40px' },
@@ -838,7 +854,15 @@ const styles = {
   logoText: { fontSize: '20px', fontWeight: '700', letterSpacing: '-0.3px', color: '#f2f4f8' },
   userProfileSide: { display: 'flex', gap: '14px', alignItems: 'center', marginBottom: '35px', padding: '14px', background: '#1f222c', borderRadius: '12px', border: '1px solid #2d313f', cursor: 'pointer', transition: 'background-color 0.2s ease' },
   avatarLarge: { minWidth: '40px', height: '40px', borderRadius: '50%', background: '#00f5d4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0d0e12', fontWeight: 'bold', fontSize: '15px' },
-  userNameSide: { fontWeight: '600', fontSize: '14px', color:'#f2f4f8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  
+  // ✅ FIX: Sidebar Email Pill Style
+  emailContainerSidebar: {
+    display: 'inline-flex', alignItems: 'center', padding: '6px 14px',
+    backgroundColor: '#2d313f', borderRadius: '50px', border: '1px solid #3d4255',
+    color: '#e2e8f0', fontSize: '12px', fontWeight: '500', marginTop: '4px',
+    maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+  },
+  
   userRoleBadge: { background: 'rgba(255, 183, 3, 0.1)', fontSize: '10px', padding: '3px 8px', borderRadius: '5px', color: '#ffb703', fontWeight:'600', marginTop:'4px', display:'inline-block', border: '1px solid rgba(255, 183, 3, 0.15)' },
   navLinks: { flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' },
   navIcon: { marginRight: '10px', fontSize: '17px' },
@@ -848,7 +872,14 @@ const styles = {
   mainWrapper: { flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', background: '#0d0e12' },
   topHeader: { height: '70px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderBottom: '1px solid #1f222c', paddingRight:'45px', background: '#14161d' },
   headerRight: { display: 'flex', gap: '24px', alignItems: 'center' },
-  headerUser: { display: 'flex', alignItems: 'center', gap: '12px' },
+  
+  // ✅ FIX: Header Pill Style
+  headerUserPill: {
+    display: 'flex', alignItems: 'center', gap: '10px',
+    background: '#1f222c', padding: '4px 14px 4px 4px', borderRadius: '50px',
+    border: '1px solid #2d313f', transition: 'all 0.2s ease'
+  },
+  
   iconBell: { fontSize: '20px', cursor: 'pointer', display: 'inline-block', padding: '6px', color: '#7e869c', borderRadius: '50%' },
   avatarSmall: { width: '28px', height: '28px', borderRadius: '50%', background: '#00f5d4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0d0e12', fontWeight: 'bold', fontSize: '13px' },
   contentArea: { padding: '35px 45px 45px', boxSizing: 'border-box' },
@@ -860,8 +891,6 @@ const styles = {
   statValue: { fontSize: '32px', fontWeight: '700', marginTop: '8px' },
   taskFormCard: { background: '#14161d', padding: '28px', borderRadius: '16px', border: '1px solid #1f222c' },
   cardBlockTitle: { fontSize: '17px', fontWeight: '600', color: '#f2f4f8', marginBottom: '20px' },
-  profileAbsoluteBox: { position: 'absolute', top: '75px', left: '0', width: '100%', background: '#1f222c', borderRadius: '8px', border: '1px solid #2d313f', zIndex: 9999, overflow: 'hidden', boxShadow: '0 12px 28px -5 rgba(0,0,0,0.6)' },
-  dropdownOptionRow: { padding: '12px 16px', color: '#ff5c5c', fontWeight: '600', cursor: 'pointer', fontSize: '14px' },
   notificationFloatPanel: { position: 'absolute', top: '40px', right: '-10px', width: '300px', background: '#1f222c', borderRadius: '12px', border: '1px solid #2d313f', zIndex: 10000, boxShadow: '0 12px 28px -5 rgba(0,0,0,0.6)', overflow: 'hidden' },
   notificationHeaderFlex: { display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: '#14161d', fontSize: '13px' },
   notificationBodyEmpty: { padding: '24px 16px', textAlign: 'center', color: '#7e869c', fontSize: '13px' },
@@ -877,7 +906,6 @@ const styles = {
   acceptBtn: { background:'#00f5d4', color:'#0d0e12', border:'none', padding:'8px 16px', borderRadius:'6px', fontWeight:'600', cursor:'pointer', fontSize:'13px' },
   rejectBtn: { background:'#ff5c5c', color:'white', border:'none', padding:'8px 16px', borderRadius:'6px', fontWeight:'600', cursor:'pointer', fontSize:'13px' },
   bottomGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' },
-  cardBlockTitle: { fontSize: '17px', fontWeight: '600', color: '#f2f4f8', marginBottom: '20px' },
   emptyContainerCentering: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '50px 0', color: '#525866' },
   scrollableMiniQueue: { maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' },
   miniLeaveCardRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0d0e12', padding: '14px 16px', borderRadius: '10px', border: '1px solid #1f222c' },
@@ -889,7 +917,8 @@ const styles = {
   accordionClickableTriggerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', cursor: 'pointer', background: '#0d0e12' },
   accordionInnerContentBox: { background: '#14161d', padding: '14px', borderTop: '1px solid #1f222c', display:'flex', flexDirection:'column', gap: '12px' },
   miniLabelCountBadge: { background: 'rgba(0, 245, 212, 0.06)', color: '#00f5d4', fontSize: '12px', padding: '2px 8px', borderRadius: '5px', fontWeight: '600' },
-  pillBadgeMeta: { background: 'rgba(255,255,255,0.02)', padding: '6px 14px', borderRadius: '30px', fontSize: '13px', border: '1px solid #1f222c', color: '#7e869c', fontWeight: '500' }
+  pillBadgeMeta: { background: 'rgba(255,255,255,0.02)', padding: '6px 14px', borderRadius: '30px', fontSize: '13px', border: '1px solid #1f222c', color: '#7e869c', fontWeight: '500' },
+  cardSectionTitle: { fontSize: '17px', fontWeight: '600', color: '#f2f4f8', margin: 0 }
 };
 
 export default AdminDashboard;

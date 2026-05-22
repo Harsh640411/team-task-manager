@@ -123,19 +123,20 @@ const Dashboard = () => {
   }, [tasks, activeUserSessionEmail]);
 
   // GLOBAL CLICK DISMISSAL
-  useEffect(() => {
-    const handleGlobalClickDismissal = (event) => {
-      if (!event.target.closest('#praphool-header-avatar') && !event.target.closest('#praphool-notification-trigger')) {
-        showHeaderDropdown(false);
-        setShowNotificationDropdown(false);
-      }
-      if (!event.target.closest('#praphool_sidebar_settings_trigger')) {
-        setShowSettingsMenu(false);
-      }
-    };
-    document.addEventListener('click', handleGlobalClickDismissal);
-    return () => document.removeEventListener('click', handleGlobalClickDismissal);
-  }, []);
+  useEffect(() => {
+    const handleGlobalClickDismissal = (event) => {
+      if (!event.target.closest('#praphool-header-avatar') && !event.target.closest('#praphool-notification-trigger')) {
+        // ✅ FIX: 'showHeaderDropdown' ko 'setShowHeaderDropdown' kar diya
+        setShowHeaderDropdown(false); 
+        setShowNotificationDropdown(false);
+      }
+      if (!event.target.closest('#praphool_sidebar_settings_trigger')) {
+        setShowSettingsMenu(false);
+      }
+    };
+    document.addEventListener('click', handleGlobalClickDismissal);
+    return () => document.removeEventListener('click', handleGlobalClickDismissal);
+  }, []);
 
   useEffect(() => {
     document.body.style.backgroundColor = '#0d0e12';

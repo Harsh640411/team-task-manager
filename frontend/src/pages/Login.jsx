@@ -17,11 +17,9 @@ const Login = () => {
         password: password
       });
 
-      // ✅ FIXED: Token mapped to both scopes to strictly isolate tab contexts on hard/soft refreshes
       localStorage.setItem('token', res.data.token);
       sessionStorage.setItem('token', res.data.token);
 
-      // Ab backend se user details fetch karenge role janne ke liye
       const userRes = await axios.get('https://team-task-manager-production-fb15.up.railway.app/api/auth/me', {
         headers: { Authorization: `Bearer ${res.data.token}` }
       });
@@ -29,7 +27,6 @@ const Login = () => {
       const userRole = userRes.data?.role ? userRes.data.role.toLowerCase() : 'tasker';
       const actualUsername = userRes.data?.username || email;
       
-      // ✅ FIXED: Save identity payload inside sessionStorage to completely freeze cross-tab leakage
       localStorage.setItem('userRole', userRole);
       localStorage.setItem('username', actualUsername);
       
@@ -38,14 +35,12 @@ const Login = () => {
 
       alert('Logged In successfully! 🚀');
 
-      // Proper redirection matching roles
       if (userRole === 'admin') {
         navigate('/admin-dashboard');
       } else {
         navigate('/dashboard');
       }
 
-      // Force a soft page refresh to lock state accurately inside specific windows boundaries
       window.location.reload();
 
     } catch (error) {
@@ -53,6 +48,11 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fillAdminCredentials = () => {
+    setEmail('harshvardhans809@gmail.com');
+    setPassword('Harsh@0987');
   };
 
   return (
@@ -106,7 +106,8 @@ const Login = () => {
         label { color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px; }
         input { width: 100%; padding: 14px; background: #2a2a2a; border: 1px solid #333; border-radius: 12px; color: #fff; outline: none; box-sizing: border-box; }
         input:focus { border-color: #00bcd4; }
-        .submit-btn { width: 100%; padding: 14px; background: #00bcd4; color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 16px; cursor: pointer; }
+        .submit-btn { width: 100%; padding: 14px; background: #00bcd4; color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 16px; cursor: pointer; margin-bottom: 15px; }
+        .admin-btn { width: 100%; padding: 10px; background: transparent; color: #00bcd4; border: 1px solid #00bcd4; border-radius: 12px; font-size: 13px; cursor: pointer; margin-bottom: 15px; }
         .switch-text { color: #666; margin-top: 25px; font-size: 13px; }
         .link-blue { color: #00bcd4; text-decoration: none; }
       `}</style>
@@ -137,6 +138,10 @@ const Login = () => {
             {loading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
+
+        <button className="admin-btn" onClick={fillAdminCredentials}>
+          Admin Credentials Autofill
+        </button>
 
         <p className="switch-text">
           Don't have an account? <Link to="/signup" className="link-blue">Register instead</Link>

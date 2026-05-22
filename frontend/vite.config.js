@@ -8,6 +8,6 @@ export default defineConfig({
   },
   preview: {
     host: '0.0.0.0',
-    allowedHosts: ['dynamic-caring-production-44ae.up.railway.app']
+    allowedHosts: true
   }
 })

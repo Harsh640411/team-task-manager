@@ -2,6 +2,11 @@
 
 **Team Task Manager (Task Track)** ek full-stack, cloud-native application hai jise specifically teams ki productivity aur task management ko streamline karne ke liye design kiya gaya hai. Ye platform users ko tasks create karne, attendance mark karne aur leaves manage karne ki suvidha deta hai, jabki Admins ko team performance track karne ke liye advanced analytics provide karta hai.
 
+**Live Demo:** [dynamic-caring-production-44ae.up.railway.app](dynamic-caring-production-44ae.up.railway.app)
+**ADMIN CREDENTIALS**
+*Email: hs9733492@gmail.com
+*Password: Harsh@0987
+
 ## 📋 Features
 * **Role-Based Access Control:** Admin/Quality Reviewer aur Tasker ke liye specific roles.
 * **Cloud-Native Architecture:** AWS (S3, Elastic Beanstalk, DynamoDB) par deploy hone ke liye optimized.

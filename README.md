@@ -114,6 +114,6 @@ Open a Pull Request.
 
 For any queries, reach out to:
 👤 Praphool Rathore
-📩 Email: praphoolrathore2003@gmail.com
+📩 Email: hs9733492@gmail.com
 🔗 LinkedIn: [Connect with me](www.linkedin.com/in/harshvardhan-sharma-246919297)
 🌍 GitHub: [Project Repository](https://github.com/praphoolrathore/face_recognition_system)

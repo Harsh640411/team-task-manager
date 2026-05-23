@@ -101,7 +101,7 @@ npm start
 * Intelligent Shift Tracking: Automated punch-in/out system with a robust 08:00 AM daily reset mechanism for accurate shift logging.
 * Productivity Analytics: A real-time leaderboard engine that ranks team members based on task completion and performance metrics.
 * Project-Centric Auditing: Advanced segmentation that maps tasks to specific projects, enabling precise progress oversight.
-* Streamlined Leave Workflow: Centralized request management with automated status tracking and real-time team availability syncing.
+* Smart Attendance Validation: Attendance will only be marked when the employee remains active on the Task Page for a minimum of 8 working hours; otherwise, attendance will not be recorded, ensuring genuine productivity tracking.
 * Operational Telemetry: Interactive data visualization for team shifts, workload distribution, and audit efficiency.
 
 

@@ -1,6 +1,6 @@
 # 🚀 Team Task Manager (Task Track)
 
-**Team Task Manager (Task Track)** ek full-stack, cloud-native application hai jise specifically teams ki productivity aur task management ko streamline karne ke liye design kiya gaya hai. Ye platform users ko tasks create karne, attendance mark karne aur leaves manage karne ki suvidha deta hai, jabki Admins ko team performance track karne ke liye advanced analytics provide karta hai.
+**Team Task Manager (Task Track)** ek full-stack, railway native application hai jise specifically teams ki productivity aur task management ko streamline karne ke liye design kiya gaya hai. Ye platform users ko tasks create karne, attendance mark karne aur leaves manage karne ki suvidha deta hai, jabki Admins ko team performance track karne ke liye advanced analytics provide karta hai.
 
 ## 🌐 Live Demo
 Access the live application here: [Task Track - Live Project](https://dynamic-caring-production-44ae.up.railway.app)
@@ -9,12 +9,12 @@ Access the live application here: [Task Track - Live Project](https://dynamic-ca
 * Password: Harsh@0987
 
 ## 📋 Features
-* **Role-Based Access Control:** Admin/Quality Reviewer aur Tasker ke liye specific roles.
-* **Cloud-Native Architecture:** AWS (S3, Elastic Beanstalk, DynamoDB) par deploy hone ke liye optimized.
-* **Real-time Attendance:** Integrated punch-in/out system session tracking ke saath.
-* **Leave Management:** Automated leave application aur approval workflow.
-* **Analytics Dashboard:** Leaderboard aur team shift metrics ka real-time visualization.
-* **Project Allocation:** Specific projects ke liye task segmentation.
+* **Role-Based Access Control:** Dedicated roles for Admins/Quality Reviewers and Taskers.
+* **Scalable Deployment Architecture:** Optimized and deployed on Railway for seamless scalability and performance.
+* **Real-time Attendance:** Integrated punch-in/punch-out system with session tracking.
+* **Leave Management:** Automated leave application and approval workflow.
+* **Analytics Dashboard:** Real-time visualization of leaderboards and team shift metrics.
+* **Project Allocation:** Task segmentation and management for specific projects.
 
 ## 🛠 Tech Stack
 | **Technology** | **Purpose** |
@@ -22,7 +22,7 @@ Access the live application here: [Task Track - Live Project](https://dynamic-ca
 | **Frontend** | React.js, Axios, React Router, Custom CSS |
 | **Backend** | Node.js, Express.js, JWT Authentication |
 | **Database** | MySQL (Hosted on Railway) |
-| **Cloud/Infra** | Railway, AWS (S3, Elastic Beanstalk) |
+| **Cloud/Infrastructure** | Railway Deployment Platform |
 
 ## 📂 Folder Structure
 ```
